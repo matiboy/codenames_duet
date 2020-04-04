@@ -53,10 +53,10 @@ window.$vm = new Vue({
     dark: true
   }}),
   data: {
-    player1Name: '',
-    player2Name: '',
+    player1Name: localStorage.getItem('player1Name') || '',
+    player2Name: localStorage.getItem('player2Name') || '',
     bystanders: 9,
-    decks: ['Codenames'],
+    decks: JSON.parse(localStorage.getItem('decks') || '["Codenames"]'),
     availableDecks,
     snackbar: false,
     snackbarText: '',
@@ -107,6 +107,17 @@ window.$vm = new Vue({
       } catch(e) {
       }
       this.loading = false
+    },
+  },
+  watch: {
+    player1Name(value) {
+      localStorage.setItem('player1Name', value)
+    },
+    player2Name(value) {
+      localStorage.setItem('player2Name', value)
+    },
+    decks(value) {
+      localStorage.setItem('decks', JSON.stringify(value))
     }
   }
 })

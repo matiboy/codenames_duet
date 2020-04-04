@@ -8,3 +8,6 @@ services:
       - .:/code
       - ./db:/db
     command: flask run --host=0.0.0.0
+    environment:
+      - ZOOM_API_KEY=${ZOOM_API_KEY}
+      - ZOOM_API_SECRET=${ZOOM_API_SECRET}

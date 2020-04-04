@@ -1,18 +1,19 @@
 
 from app import app
-from flask import request, make_response, jsonify, render_template, redirect, url_for
+from flask import request, make_response, jsonify, render_template, redirect, url_for, send_from_directory
 import base64
 import hmac
 import string
 import time
 import hashlib
 from models import Room, Game
-from game import Game as NonDbGame, make_game, guess, stop_guessing
+from game import Game as NonDbGame, make_game, guess, stop_guessing, record_viewed
 from app import db
 from utils import id_generator
 import json
 import random
 from words import DECKS
+import os
 
 # @app.route('/signature')
 # def make_signature():
@@ -66,11 +67,11 @@ def get_game(id, as_dict=False):
   if game is not None:
     return json.loads(game.game_details)
 
-def safe_game(game, id):
-  del game['player1']['black']
-  del game['player2']['black']
-  del game['player1']['green']
-  del game['player2']['green']
+def safe_game(game, id, players=None):
+  players = players or ['player1', 'player2']
+  for player in players:
+    del game[player]['black']
+    del game[player]['green']
   game.update({'id': id})
   return game
 
@@ -96,6 +97,31 @@ def start_game(game_id=None):
       'game': game
     }
   return render_template('game.html', game=game)
+
+@app.route('/game/<game_id>/player<player_id>', methods=['GET'])
+def start_game_split(game_id=None, player_id=0):
+  game = get_game(game_id, True)
+  if game is None:
+    return redirect(url_for('setup_game'))
+  player_key = f'player{player_id}'
+  player = dict(game[player_key])
+  record_viewed(game, player_key)
+  update_game(game, game_id)
+  game = safe_game(game, game_id)
+  words_copy = game['words'].copy()
+  words=[
+    [words_copy.pop(0) for _ in range(5)] for __ in range(5)
+  ]
+  return render_template('game_split.html', game=game, player=player, words=words, player_number=player_id,
+    API_KEY=os.environ['ZOOM_API_KEY'],
+    API_SECRET=os.environ['ZOOM_API_SECRET']
+  )
+
+@app.route('/index.js')
+def index_js():
+  root_dir = os.path.dirname(os.getcwd())
+  # raise Exception(root_dir)
+  return send_from_directory('/code', 'index.js')
 
 @app.route('/game', methods=['POST'])
 def build_game():

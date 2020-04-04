@@ -69,14 +69,16 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
       'name': player1_name,
       'black': player1_black,
       'green': player1_green,
-      'attempted_words': []
+      'attempted_words': [],
+      'loaded': False,
     },
     'next_up': None,
     'player2': {
       'name': player2_name,
       'black': player2_black,
       'green': player2_green,
-      'attempted_words': []
+      'attempted_words': [],
+      'loaded': False
     },
     'bystanders': bystanders,
     'initialBystanders': bystanders,
@@ -96,6 +98,10 @@ STOPPED_GUESSING = 8
 
 def get_other_player(player: int) -> int:
   return 3 - player
+
+def record_viewed(game, player_key: str):
+  game[player_key]['loaded'] = True
+  return game
 
 def stop_guessing(game, player: int) -> (int, dict):
   game['bystanders'] -= 1

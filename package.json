@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "amazon-chime-sdk-js": "^1.2.1"
+  }
+}
