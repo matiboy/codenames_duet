@@ -191,3 +191,11 @@ class Game(object):
     self.hint_count = hint_count
     player_name = self.get_player_name(player)
     self.history.append(f'{player_name} gave hint "{hint}" with a count of {hint_count}')
+
+def safe_game(game, id, players=None):
+  players = players or ['player1', 'player2']
+  for player in players:
+    del game[player]['black']
+    del game[player]['green']
+  game.update({'id': id})
+  return game

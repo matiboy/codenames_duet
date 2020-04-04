@@ -1,7 +1,5 @@
 {% extends 'vue_base.html' %}
 {% block style %}
-<link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.7.2/css/bootstrap.css"/>
-    <link type="text/css" rel="stylesheet" href="https://source.zoom.us/1.7.2/css/react-select.css"/>
 {{super()}}
 
   <style>
@@ -118,13 +116,7 @@
 </v-content>
 {% endblock %}
 {% block vueapp %}
-<script src="https://source.zoom.us/1.7.2/lib/vendor/react.min.js"></script>
-<script src="https://source.zoom.us/1.7.2/lib/vendor/react-dom.min.js"></script>
-<script src="https://source.zoom.us/1.7.2/lib/vendor/redux.min.js"></script>
-<script src="https://source.zoom.us/1.7.2/lib/vendor/redux-thunk.min.js"></script>
-<script src="https://source.zoom.us/1.7.2/lib/vendor/jquery.min.js"></script>
-<script src="https://source.zoom.us/zoom-meeting-1.7.2.min.js"></script>
-<script src="/index.js"></script>
+<script src="/static/chime.js"></script>
 <script>
   
 </script>
@@ -137,141 +129,141 @@
   window.API_SECRET = "{{API_SECRET}}"
   var post = window.post
   
-  // window.$vm = new Vue({
-  //   el: '#app',
-  //   vuetify: new Vuetify({theme:{
-  //     dark: true
-  //   }}),
-  //   data: {
-  //     game: window.GAME,
-  //     snackbar: false,
-  //     snackbarText: '',
-  //     snackbarColor: 'white',
-  //     loading: false,
-  //     lost: false,
-  //     won: false,
-  //     firstPlayer: null
-  //   },
-  //   mounted() {
+  window.$vm = new Vue({
+    el: '#app',
+    vuetify: new Vuetify({theme:{
+      dark: true
+    }}),
+    data: {
+      game: window.GAME,
+      snackbar: false,
+      snackbarText: '',
+      snackbarColor: 'white',
+      loading: false,
+      lost: false,
+      won: false,
+      firstPlayer: null
+    },
+    mounted() {
       
-  //   },
-  //   computed: {
-  //     playerStatus() {
-  //       if(this.game.next_up) {
-  //         return 'open'
-  //       } else if(this.game.next_up === playerNumber) {
-  //         return 'guess'
-  //       } else {
-  //         return 'hint'
-  //       }
-  //     },
-  //     playerStatusText() {
-  //       if (this.playerStatus === 'guess') {return 'guessing'}
-  //       if (this.playerStatus === 'hint') {return 'giving hint'}
-  //     },
-  //     nextPlayer() {
-  //       if(this.game.next_up) {
-  //         return this.game[`player${this.game.next_up}`]
-  //       }
-  //       return {}
-  //     },
-  //     rows() {
-  //       return _.chunk(this.game.words, 5)
-  //     },
-  //     noPlayer() {
-  //       return this.game.next_up === null
-  //     },
-  //     next_up() {
-  //       console.log(this.game.next_up)
-  //       return this.game.next_up
-  //     },
-  //     player() {
-  //       return this.next_up
-  //     },
-  //     player1() {
-  //       return this.next_up === 1
-  //     },
-  //     player2() {
-  //       return this.next_up === 2
-  //     },
-  //     bystanders() {
-  //       return [
-  //       1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
-  //       ].slice(0, this.game.initialBystanders)
-  //       .map(i => `https://i.picsum.photos/id/${i}/65/65.jpg`)
-  //     },
-  //     ended() {
-  //       return (this.lost || this.won)
-  //     },
-  //     overlayColor() {
-  //       return this.lost ? 'error' : this.won ? 'success' : null
-  //     }
-  //   },
-  //   methods: {
-  //     selectFirstPlayer(v) {
-  //       this.firstPlayer = v + 1
-  //     },
-  //     snackChange(v) {
-  //       this.snackbar = v
-  //     },
-  //     isFound(word) {
-  //       return this.game.found.includes(word)
-  //     },
-  //     showSnackbar(text) {
-  //       this.snackbar = true
-  //       this.snackbarText = text
-  //     },
-  //     async stopGuessing() {
-  //       await this.serverAction(`/stop/${this.game.id}`, {
-  //         player: this.player
-  //       })
-  //     },
-  //     async pointed(word) {
-  //       if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
-  //         return
-  //       }
-  //       const result = await this.serverAction(`/guess/${this.game.id}`, {
-  //         word,
-  //         player: this.player || this.firstPlayer
-  //       })
-  //     },
-  //     async serverAction(url, data) {
-  //       this.loading = true
-  //       const {result, game} = await post(url, data)
-  //       if([1, 4].includes(result)) {
-  //         this.lost = true
-  //       } else {
-  //         if(result === 6) {
-  //           this.showSnackbar('🙄')
-  //         } else {
-  //           let message = ''
-  //           switch(result) {
-  //             case 3:
-  //               message = 'Nope'
-  //               break;
-  //             case 2:
-  //               message = 'Well done'
-  //               break;
-  //             case 8:
-  //               message = 'Ok, moving on then'
-  //               break;
-  //           }
-  //           this.showSnackbar(message)
-  //         }
-  //         console.log(game, this.game)
-  //         this.game = game
-  //       }
-  //       return result
-  //     },
-  //     player1Attempted(word) {
-  //       if(this.game.found.includes(word)) { return false }
-  //       return this.game.player1.attempted_words.includes(word)
-  //     },
-  //     player2Attempted(word) {
-  //       if(this.game.found.includes(word)) { return false }
-  //       return this.game.player2.attempted_words.includes(word)
-  //     }
-  //   }
-  // })
+    },
+    computed: {
+      playerStatus() {
+        if(this.game.next_up) {
+          return 'open'
+        } else if(this.game.next_up === playerNumber) {
+          return 'guess'
+        } else {
+          return 'hint'
+        }
+      },
+      playerStatusText() {
+        if (this.playerStatus === 'guess') {return 'guessing'}
+        if (this.playerStatus === 'hint') {return 'giving hint'}
+      },
+      nextPlayer() {
+        if(this.game.next_up) {
+          return this.game[`player${this.game.next_up}`]
+        }
+        return {}
+      },
+      rows() {
+        return _.chunk(this.game.words, 5)
+      },
+      noPlayer() {
+        return this.game.next_up === null
+      },
+      next_up() {
+        console.log(this.game.next_up)
+        return this.game.next_up
+      },
+      player() {
+        return this.next_up
+      },
+      player1() {
+        return this.next_up === 1
+      },
+      player2() {
+        return this.next_up === 2
+      },
+      bystanders() {
+        return [
+        1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
+        ].slice(0, this.game.initialBystanders)
+        .map(i => `https://i.picsum.photos/id/${i}/65/65.jpg`)
+      },
+      ended() {
+        return (this.lost || this.won)
+      },
+      overlayColor() {
+        return this.lost ? 'error' : this.won ? 'success' : null
+      }
+    },
+    methods: {
+      selectFirstPlayer(v) {
+        this.firstPlayer = v + 1
+      },
+      snackChange(v) {
+        this.snackbar = v
+      },
+      isFound(word) {
+        return this.game.found.includes(word)
+      },
+      showSnackbar(text) {
+        this.snackbar = true
+        this.snackbarText = text
+      },
+      async stopGuessing() {
+        await this.serverAction(`/stop/${this.game.id}`, {
+          player: this.player
+        })
+      },
+      async pointed(word) {
+        if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
+          return
+        }
+        const result = await this.serverAction(`/guess/${this.game.id}`, {
+          word,
+          player: this.player || this.firstPlayer
+        })
+      },
+      async serverAction(url, data) {
+        this.loading = true
+        const {result, game} = await post(url, data)
+        if([1, 4].includes(result)) {
+          this.lost = true
+        } else {
+          if(result === 6) {
+            this.showSnackbar('🙄')
+          } else {
+            let message = ''
+            switch(result) {
+              case 3:
+                message = 'Nope'
+                break;
+              case 2:
+                message = 'Well done'
+                break;
+              case 8:
+                message = 'Ok, moving on then'
+                break;
+            }
+            this.showSnackbar(message)
+          }
+          console.log(game, this.game)
+          this.game = game
+        }
+        return result
+      },
+      player1Attempted(word) {
+        if(this.game.found.includes(word)) { return false }
+        return this.game.player1.attempted_words.includes(word)
+      },
+      player2Attempted(word) {
+        if(this.game.found.includes(word)) { return false }
+        return this.game.player2.attempted_words.includes(word)
+      }
+    }
+  })
 </script>
 {% endblock %}

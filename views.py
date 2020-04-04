@@ -6,14 +6,15 @@ import hmac
 import string
 import time
 import hashlib
-from models import Room, Game
-from game import Game as NonDbGame, make_game, guess, stop_guessing, record_viewed
+from models import Room, Game, Attendee
+from game import guess, make_game, record_viewed, safe_game, stop_guessing
 from app import db
 from utils import id_generator
 import json
 import random
 from words import DECKS
 import os
+from chime import create_attendee, create_meeting, get_client_from_env
 
 # @app.route('/signature')
 # def make_signature():
@@ -22,35 +23,6 @@ import os
 #     'meetingNumber': request.args.get('meeting'),
 #     'role': request.args.get('role', type=int)}
 #     return generateSignature(data)
-
-def generateSignature(data):
-    ts = int(round(time.time() * 1000)) - 30000
-    msg = data['apiKey'] + str(data['meetingNumber']) + str(ts) + str(data['role'])
-    message = base64.b64encode(bytes(msg, 'utf-8'))
-    secret = bytes(data['apiSecret'], 'utf-8')
-    hash = hmac.new(secret, message, hashlib.sha256)
-    hash =  base64.b64encode(hash.digest())
-    hash = hash.decode("utf-8")
-    tmpString = "%s.%s.%s.%s.%s" % (data['apiKey'], str(data['meetingNumber']), str(ts), str(data['role']), hash)
-    signature = base64.b64encode(bytes(tmpString, "utf-8"))
-    signature = signature.decode("utf-8")
-    return signature.rstrip("=")
-
-# @app.route('/join_room')
-# def join_room():
-#     id = request.args.get('id')
-#     room = Room.query.filter_by(token=id).first()
-#     if room is None:
-#       room = Room()
-
-#     if room.is_full:
-#       return make_response(jsonify({'code': 'ROOM_FULL'}), 400)
-#     participant = room.join(request.args.get('name'))
-#     return jsonify(
-#       room=id,
-#       players=room.participant_names,
-#       player=participant.serialize()
-#     )
 
 @app.route('/delete_game')
 def delete_game():
@@ -67,15 +39,8 @@ def get_game(id, as_dict=False):
   if game is not None:
     return json.loads(game.game_details)
 
-def safe_game(game, id, players=None):
-  players = players or ['player1', 'player2']
-  for player in players:
-    del game[player]['black']
-    del game[player]['green']
-  game.update({'id': id})
-  return game
 
-def update_game(game: dict, id: str):
+def update_game_details(game: dict, id: str):
   db_game = get_game(id)
   db_game.game_details = json.dumps(game)
   db.session.commit()
@@ -100,13 +65,34 @@ def start_game(game_id=None):
 
 @app.route('/game/<game_id>/player<player_id>', methods=['GET'])
 def start_game_split(game_id=None, player_id=0):
-  game = get_game(game_id, True)
+  game = get_game(game_id)
   if game is None:
     return redirect(url_for('setup_game'))
+
+  # AWS video stuff
+  client = get_client_from_env()
+  if game.meeting_id is None:
+    _, meeting = create_meeting(client)
+    game.set_meeting(meeting)
+  
+  meeting = game.meeting_details
+  # Create an attendee
+  try:
+    unique_id, attendee = create_attendee(client, game.meeting_id)
+  except client.exceptions.ForbiddenException:
+    # Likely the meeting expired, delete and try again
+    game.delete_meeting()
+    # Probably should do something about this potential infinite redirect
+    return redirect(request.url)
+  game.add_attendee(unique_id, attendee, player_id)
+
+  # Actual game stuff
+  game = get_game(game_id, True)
+  
   player_key = f'player{player_id}'
   player = dict(game[player_key])
   record_viewed(game, player_key)
-  update_game(game, game_id)
+  update_game_details(game, game_id)
   game = safe_game(game, game_id)
   words_copy = game['words'].copy()
   words=[
@@ -155,7 +141,7 @@ def key(game_id):
     if key is not None:
       player = key['name']
     game['keys'] += 1
-    update_game(game, game_id)
+    update_game_details(game, game_id)
     return render_template('key.html', player=player, key=key, words=[
       [game['words'].pop(0) for _ in range(5)] for __ in range(5)
     ])
@@ -165,7 +151,7 @@ def stop_route(game_id):
   content = request.get_json()
   game = get_game(game_id, as_dict=True)
   result, game = stop_guessing(game, content['player'])
-  update_game(game, game_id)
+  update_game_details(game, game_id)
   return {
     'result': result,
     'game': safe_game(game, game_id)
@@ -176,7 +162,7 @@ def guess_route(game_id):
   content = request.get_json()
   game = get_game(game_id, as_dict=True)
   result, game = guess(game, **content)
-  update_game(game, game_id)
+  update_game_details(game, game_id)
   return {
     'result': result,
     'game': safe_game(game, game_id)
