@@ -1,0 +1,113 @@
+{% extends 'vue_base.html' %}
+{% block vuetemplate %}
+<v-container>
+  <v-col>
+    <v-row><h3>Player names</h3></v-row>
+    <v-row>
+      <v-col cols="6">
+        <v-text-field label="Player 1" v-model="player1Name"></v-text-field>
+      </v-col>
+      <v-col cols="6">
+        <v-text-field label="Player 2" v-model="player2Name"></v-text-field>
+      </v-col>
+    </v-row>
+    <v-row><h3>Game options</h3></v-row>
+    <v-row>
+      <v-col cols="2">
+        <v-text-field type="number" label="Innocent bystanders" v-model="bystanders"></v-text-field>
+      </v-col>
+      <v-col cols="10">
+        <div v-for="item in availableDecks">
+          <v-checkbox
+              v-model="decks"
+              :label="item"
+              :value="item"
+              hide-details
+          />
+      </div>
+      </v-col>
+    </v-row>
+    <v-row justify="center"><v-btn :loading="loading" :disabled="decks.length === 0" color="success" @click="create">Create game</v-btn></v-row>
+    <v-row v-if="gameUrl">
+      <v-col cols="6">
+        <v-row>
+          <a :href="gameUrl" mr-2>Join the game here</a>
+          <v-icon @click="copyToClipBoard('gameUrl')">mdi-content-copy</v-icon>
+        </v-row>
+        <v-row>
+          <img :src="qrData" mr-2></a>
+          <v-icon @click="copyToClipBoard('keyUrl')">mdi-content-copy</v-icon>
+          <em>Note that you can only load this link once per player</em>
+        </v-row>
+      </v-col>
+    </v-row>
+  </v-col>
+</v-container>
+{% endblock %}
+{% block vueapp %}
+<script>
+const availableDecks = {{decks|tojson|safe}}
+window.$vm = new Vue({
+  el: '#app',
+  vuetify: new Vuetify({theme:{
+    dark: true
+  }}),
+  data: {
+    player1Name: '',
+    player2Name: '',
+    bystanders: 9,
+    decks: ['Codenames'],
+    availableDecks,
+    snackbar: false,
+    snackbarText: '',
+    snackbarColor: 'white',
+    gameUrl: '',
+    keyUrl: '',
+    loading: false
+  },
+  computed: {
+    qrData() {
+      const qr = qrcode(7, 'M')
+      qr.addData(`${window.location.toString()}${this.keyUrl}`, 'Byte')
+      qr.make()
+      return qr.createDataURL()
+    }
+  },
+  methods: {
+    copyToClipBoard(key) {
+      const textarea = document.createElement("textarea")
+      textarea.textContent = `${window.location.host}${this[key]}`
+      textarea.style.position = "fixed";  // Prevent scrolling to bottom of page in Microsoft Edge.
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+          return document.execCommand("copy");  // Security exception may be thrown by some browsers.
+      }
+      catch (ex) {
+          console.warn("Copy to clipboard failed.", ex);
+          return false;
+      }
+      finally {
+          document.body.removeChild(textarea);
+      }
+    },
+    async create() {
+      this.loading = true
+      this.gameUrl = ''
+      this.keyUrl = ''
+      try {
+        const {gameUrl, keyUrl} = await window.post('/game', {
+          player1Name: this.player1Name,
+          player2Name: this.player2Name,
+          bystanders: this.bystanders,
+          decks: this.decks,
+        })
+        this.gameUrl = gameUrl
+        this.keyUrl = keyUrl
+      } catch(e) {
+      }
+      this.loading = false
+    }
+  }
+})
+</script>{% endblock %}

@@ -1,0 +1,10 @@
+version: '3'
+services:
+  flask:
+    build: .
+    ports:
+      - 5000:5000
+    volumes:
+      - .:/code
+      - ./db:/db
+    command: flask run --host=0.0.0.0

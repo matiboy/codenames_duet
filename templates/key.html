@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    body {
+      background-color: skyblue;
+    }
+    .green {
+      background-color: green;
+      color: white;
+    }
+    .black {
+      background-color: black;
+      color: white;
+    }
+    td {
+      background-color: white;
+      border: solid 1px black;
+      text-align: center;
+      padding: 10px 0;
+      width: 70px;
+    }
+    table {
+      border: solid 2px black;
+      border-collapse:collapse;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+  </style>
+</head>
+<body>
+  {% if not key %}
+  <h1>You've already viewed all keys; you'll need to <a href="/game">start a new game</a></h1>
+  {% else %}
+  <h4>Important, do NOT refresh this page - Viewing key for {{player}}</h4>
+  <table border="0">
+    {% for row in words %}
+    <tr>
+      {% for word in row %}<td {% if word in key.green %}class="green"{% elif word in key.black %}class="black"{%endif%}>{{word}}</td>{%endfor%}
+    </tr>
+    {% endfor %}
+  </table>
+  {%endif%}
+</body>
+</html>

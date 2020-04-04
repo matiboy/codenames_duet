@@ -1,0 +1,212 @@
+{% extends 'vue_base.html' %}
+{% block style %}
+{{super()}}
+  <style>
+    .theme--dark.v-card > .v-card__text {
+      font-size: 1.3em;
+      text-transform: uppercase;
+      padding-top: 40px;
+      padding-bottom: 40px;
+      border: 2px solid white;
+    }
+    .attempted-wrapper {
+      position: absolute;
+      top: 2px;
+      right: 5px;
+    }
+    img.dead {
+      filter: grayscale(1) blur(3px);
+    }
+    h1 {
+      font-size: 5em;
+    }
+    .found {
+      filter: drop-shadow(0 0 10px green) drop-shadow(0 0 10px green)
+    }
+  </style>
+{% endblock %}
+{% block vuetemplate %}
+  <v-container fluid>
+    <v-col>
+      <v-row>
+        <v-col align="center" justify="center">
+          <small>Innocent Bystanders</small><br>
+          <img v-for="img, i in bystanders" :key="img" :src="img" :class="{dead: i >= game.bystanders}" class="ml-1 mr-1">
+        </v-col>
+      </v-row>
+      <v-row align="center" justify="center">
+        <v-col cols="auto" v-if="!noPlayer">
+          Next up for guessing: <span v-text="nextPlayer.name"></span>
+        </v-col>
+        <v-col cols="auto" v-if="noPlayer">
+          Select first player to guess:
+          <v-btn-toggle @change="selectFirstPlayer" class="ml-2">
+            <v-btn>{{game.player1.name}}</v-btn>
+            <v-btn>{{game.player2.name}}</v-btn>
+          </v-btn-toggle>
+        </v-col>
+        <v-col cols="1"></v-col>
+        <v-col cols="2">
+          <v-btn color="warning" outlined @click="stopGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
+        </v-col>
+        
+      </v-row>
+      <v-row v-for="row, i in rows" :key="i">
+        <v-col cols="1"></v-col>
+        <v-col cols="2" v-for="word, j in row" :key="j">
+          <v-card @click="pointed(word)" :class="{found: isFound(word)}">
+            <v-card-text class="text-center">
+              <div class="attempted-wrapper">
+                <v-icon v-if="player1Attempted(word)">mdi-numeric-1-circle</v-icon>
+                <v-icon v-if="player2Attempted(word)">mdi-numeric-2-circle</v-icon>
+              </div>
+              <div v-text="word"></div>
+            </v-card-text>
+          </v-card>
+        </v-col>
+        <v-col cols="1"></v-col>
+      </v-row>
+    </v-col>
+  </v-container>
+  <v-overlay :value="ended" :color="overlayColor">
+    <h1 class="success--text" v-if="won">Win!</h1>
+    <h1 class="error--text" v-if="lost">LOST 😓</h1>
+  </v-overlay>
+</v-content>
+{% endblock %}
+{% block vueapp %}
+<script>
+  // Avoid mistakenly using game vs this.game
+  window.GAME = {{game|tojson|safe}}
+  var post = window.post
+  window.$vm = new Vue({
+    el: '#app',
+    vuetify: new Vuetify({theme:{
+      dark: true
+    }}),
+    data: {
+      game: window.GAME,
+      snackbar: false,
+      snackbarText: '',
+      snackbarColor: 'white',
+      loading: false,
+      lost: false,
+      won: false,
+      firstPlayer: null
+    },
+    mounted() {
+      setInterval(() => fetch(window.location.toString(), {
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      }).then(x => x.json())
+      .then(x => this.game = x.game)
+      , 2000)
+    },
+    computed: {
+      nextPlayer() {
+        if(this.game.next_up) {
+          return this.game[`player${this.game.next_up}`]
+        }
+        return {}
+      },
+      rows() {
+        return _.chunk(this.game.words, 5)
+      },
+      noPlayer() {
+        return this.game.next_up === null
+      },
+      next_up() {
+        console.log(this.game.next_up)
+        return this.game.next_up
+      },
+      player() {
+        return this.next_up
+      },
+      player1() {
+        return this.next_up === 1
+      },
+      player2() {
+        return this.next_up === 2
+      },
+      bystanders() {
+        return [
+        1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
+        ].slice(0, this.game.initialBystanders)
+        .map(i => `https://i.picsum.photos/id/${i}/65/65.jpg`)
+      },
+      ended() {
+        return (this.lost || this.won)
+      },
+      overlayColor() {
+        return this.lost ? 'error' : this.won ? 'success' : null
+      }
+    },
+    methods: {
+      selectFirstPlayer(v) {
+        this.firstPlayer = v + 1
+      },
+      snackChange(v) {
+        this.snackbar = v
+      },
+      isFound(word) {
+        return this.game.found.includes(word)
+      },
+      showSnackbar(text) {
+        this.snackbar = true
+        this.snackbarText = text
+      },
+      async stopGuessing() {
+        await this.serverAction(`/stop/${this.game.id}`, {
+          player: this.player
+        })
+      },
+      async pointed(word) {
+        if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
+          return
+        }
+        const result = await this.serverAction(`/guess/${this.game.id}`, {
+          word,
+          player: this.player || this.firstPlayer
+        })
+      },
+      async serverAction(url, data) {
+        this.loading = true
+        const {result, game} = await post(url, data)
+        if([1, 4].includes(result)) {
+          this.lost = true
+        } else {
+          if(result === 6) {
+            this.showSnackbar('🙄')
+          } else {
+            let message = ''
+            switch(result) {
+              case 3:
+                message = 'Nope'
+                break;
+              case 2:
+                message = 'Well done'
+                break;
+              case 8:
+                message = 'Ok, moving on then'
+                break;
+            }
+            this.showSnackbar(message)
+          }
+          console.log(game, this.game)
+          this.game = game
+        }
+        return result
+      },
+      player1Attempted(word) {
+        if(this.game.found.includes(word)) { return false }
+        return this.game.player1.attempted_words.includes(word)
+      },
+      player2Attempted(word) {
+        if(this.game.found.includes(word)) { return false }
+        return this.game.player2.attempted_words.includes(word)
+      }
+    }
+  })
+</script>
+{% endblock %}
