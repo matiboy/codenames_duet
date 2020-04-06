@@ -2,9 +2,24 @@
   "compilerOptions": {
     "outDir": "./static/",
     "sourceMap": true,
-    "noImplicitAny": true,
+    "noImplicitAny": false,
     "module": "commonjs",
     "target": "es5",
-    "allowJs": true
-  }
+    "allowJs": true,
+    "lib": ["ES2017", "DOM", "es2018.promise"],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/vuetify/types"
+    ],
+    "downlevelIteration": true,
+    "types": [
+      "vuetify",
+      "@types/pusher-js"
+    ]
+  },
+  "files": ["typings.d.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue"
+  ]
 }

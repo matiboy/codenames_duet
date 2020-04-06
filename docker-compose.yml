@@ -9,7 +9,8 @@ services:
       - ./db:/db
     command: flask run --host=0.0.0.0
     environment:
-      - ZOOM_API_KEY=${ZOOM_API_KEY}
-      - ZOOM_API_SECRET=${ZOOM_API_SECRET}
+      - PUSHER_APP_KEY=${PUSHER_APP_KEY}
+      - PUSHER_APP_SECRET=${PUSHER_APP_SECRET}
+      - PUSHER_APP_ID=${PUSHER_APP_ID}
       - CHIME_API_KEY=${CHIME_API_KEY}
       - CHIME_API_SECRET=${CHIME_API_SECRET}

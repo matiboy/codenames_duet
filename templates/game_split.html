@@ -46,10 +46,23 @@
       border-collapse:collapse;
       font-family: Arial, Helvetica, sans-serif;
     }
+    #video-other-player {
+      background-color: red;
+      width: 200px;
+      height: 160px;
+    }
+    video#video-0, video#video-16, video#video-preview {
+      width: 100%;
+    }
   </style>
 {% endblock %}
 {% block vuetemplate %}
-  <v-container fluid>
+<v-container fluid>
+    <audio id="meeting-audio" style="display:none"></audio>
+    <!-- <v-row>
+      <video id="video-preview"></video>
+      <video id="video-other-player"></video>
+    </v-row> -->
     <v-row>
       <v-col cols="2">
         <table id="key" border="0">
@@ -60,6 +73,67 @@
           {% endfor %}
         </table>
         <p v-if="playerStatus !== 'open'">You are now <span class="status" v-text="playerStatusText"></span></p>
+        <div id="flow-load-devices" class="flow" v-show="videoStep === 'flow-load-devices'">
+          <v-progress-circular indeterminate></v-progress-circular>
+          <small>Reading your microphone and camera details</small>
+        </div>
+        <div id="flow-devices" class="flow" v-show="videoStep === 'flow-in-meeting'">
+          <div id="tile-0">
+            <video id="video-0"></video>
+            <v-row>
+              <v-col class="nameplate">{{thisPlayerName}}</v-col>
+              <v-col>
+                <v-btn icon @click="pauseSelf"><v-icon>mdi-pause</v-icon></v-btn>
+              </v-col>
+            </v-row>
+          </div>
+          <div id="tile-16">
+            <video id="video-16"></video>
+            <div id="nameplate-16">{{otherPlayerName}}</div>
+            <v-btn id="video-pause-16" icon><v-icon>mdi-pause</v-icon></button>
+            <v-btn id="video-resume-16" icon><v-icon>mdi-play</v-icon></button>
+          </div>
+        </div>
+        <div id="flow-devices" class="flow" v-show="videoStep === 'flow-devices'">
+          <div class="container">
+            <form id="form-devices">
+              <p class="text-center">Select devices</p>
+              <v-col>
+                <v-row>
+                  <v-select :value="selectedAudioInput" @input="selectAudioInput" id="audio-input" label="Microphone" :items="audioInputDevices"></v-select>
+                </v-row>
+                <!-- <v-col>
+                  <h4>Preview</h4>
+                  <v-row class="w-100 progress" style="margin-top:0.75rem">
+                    <div id="audio-preview" class="progress-bar bg-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                  </v-row>
+                </v-col> -->
+                <v-row>
+                  <v-select :value="selectedVideoInput" @input="selectVideoInput" id="video-input" label="Camera" :items="videoInputDevices"></v-select>
+                </v-row>
+                <v-row>
+                  <video id="video-preview"></video>
+                </v-row>
+                <v-row>
+                  <v-select :value="selectedVideoQuality" id="video-input-quality" @input="selectVideoQuality" label="Quality" :items="qualityOptions"></v-select>
+                </v-row>
+                <v-row>
+                  <v-select :value="selectedAudioOutput" id="audio-output" label="Speaker" @input="selectAudioOutput" :items="audioOutputDevices"></v-select>
+                </v-row>
+                <v-row>
+                  <v-btn @click="testSpeaker" small outlined color="info">Test <v-icon>mdi-speaker</v-icon></v-btn>
+                </v-row>
+                <v-row class="mt-3">
+                  <v-btn @click="join" color="success">Join</v-btn>
+                </v-row>
+              </v-col>
+            </form>
+            <div id="progress-join" class="w-100 progress progress-hidden">
+              <div class="w-100 progress-bar progress-bar-striped progress-bar-animated" role="progressbar" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+          </div>
+        </div>
+    
       </v-col>
       <v-col cols="9">
         <v-row v-for="row, i in rows" :key="i">
@@ -86,184 +160,53 @@
       </v-col>
     </v-row>
     <v-col>
-      <v-row>
-        
-      </v-row>
-      <v-row align="center" justify="center">
-        <v-col cols="auto" v-if="!noPlayer">
-          Next up for guessing: <span v-text="nextPlayer.name"></span>
-        </v-col>
-        <v-col cols="auto" v-if="noPlayer">
-          Select first player to guess:
-          <v-btn-toggle @change="selectFirstPlayer" class="ml-2">
-            <v-btn>{{game.player1.name}}</v-btn>
-            <v-btn>{{game.player2.name}}</v-btn>
-          </v-btn-toggle>
+      <v-row align="center" justify="center" v-if="!noPlayer">
+        <v-col cols="auto">
+          <span v-text="nextPlayer.name"></span>'s turn to GUESS
         </v-col>
         <v-col cols="1"></v-col>
         <v-col cols="2">
           <v-btn color="warning" outlined @click="stopGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
         </v-col>
-        
       </v-row>
-      
+      <v-row align="center" justify="center" v-if="noPlayer">
+        Anyone can start with the first hint.
+      </v-row>
     </v-col>
   </v-container>
   <v-overlay :value="ended" :color="overlayColor">
+    <span v-text="won"></span>
+    <span v-text="lost"></span>
     <h1 class="success--text" v-if="won">Win!</h1>
     <h1 class="error--text" v-if="lost">LOST 😓</h1>
+    <v-btn large @click="startNew">Start new game</v-btn>
   </v-overlay>
 </v-content>
 {% endblock %}
 {% block vueapp %}
-<script src="/static/chime.js"></script>
+<script src="/static/game_split.js"></script>
+<script src="/dynamic/{{attendee.ExternalUserId}}.js"></script>
 <script>
-  
-</script>
-<script>
-  
   // Avoid mistakenly using game vs this.game
   window.GAME = {{game|tojson|safe}}
+  window.MEETING = {{meeting|tojson|safe}}
+  window.ATTENDEE = {{attendee|tojson|safe}}
   window.playerNumber = {{player_number}}
-  window.API_KEY = "{{API_KEY}}"
-  window.API_SECRET = "{{API_SECRET}}"
-  var post = window.post
+  window.PUSHER_KEY = '{{pusher_key}}'
+  window.PUSHER_CLUSTER = '{{pusher_cluster}}'
   
   window.$vm = new Vue({
-    el: '#app',
-    vuetify: new Vuetify({theme:{
-      dark: true
-    }}),
+    ...CovidNames.game_split.default,
     data: {
-      game: window.GAME,
-      snackbar: false,
-      snackbarText: '',
-      snackbarColor: 'white',
-      loading: false,
-      lost: false,
-      won: false,
-      firstPlayer: null
+      ...CovidNames.game_split.default.data,
+      game: window.GAME
     },
-    mounted() {
-      
-    },
-    computed: {
-      playerStatus() {
-        if(this.game.next_up) {
-          return 'open'
-        } else if(this.game.next_up === playerNumber) {
-          return 'guess'
-        } else {
-          return 'hint'
-        }
-      },
-      playerStatusText() {
-        if (this.playerStatus === 'guess') {return 'guessing'}
-        if (this.playerStatus === 'hint') {return 'giving hint'}
-      },
-      nextPlayer() {
-        if(this.game.next_up) {
-          return this.game[`player${this.game.next_up}`]
-        }
-        return {}
-      },
-      rows() {
-        return _.chunk(this.game.words, 5)
-      },
-      noPlayer() {
-        return this.game.next_up === null
-      },
-      next_up() {
-        console.log(this.game.next_up)
-        return this.game.next_up
-      },
-      player() {
-        return this.next_up
-      },
-      player1() {
-        return this.next_up === 1
-      },
-      player2() {
-        return this.next_up === 2
-      },
-      bystanders() {
-        return [
-        1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
-        ].slice(0, this.game.initialBystanders)
-        .map(i => `https://i.picsum.photos/id/${i}/65/65.jpg`)
-      },
-      ended() {
-        return (this.lost || this.won)
-      },
-      overlayColor() {
-        return this.lost ? 'error' : this.won ? 'success' : null
+    el: '#app',
+    vuetify: new Vuetify({
+      theme: {
+        dark: true
       }
-    },
-    methods: {
-      selectFirstPlayer(v) {
-        this.firstPlayer = v + 1
-      },
-      snackChange(v) {
-        this.snackbar = v
-      },
-      isFound(word) {
-        return this.game.found.includes(word)
-      },
-      showSnackbar(text) {
-        this.snackbar = true
-        this.snackbarText = text
-      },
-      async stopGuessing() {
-        await this.serverAction(`/stop/${this.game.id}`, {
-          player: this.player
-        })
-      },
-      async pointed(word) {
-        if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
-          return
-        }
-        const result = await this.serverAction(`/guess/${this.game.id}`, {
-          word,
-          player: this.player || this.firstPlayer
-        })
-      },
-      async serverAction(url, data) {
-        this.loading = true
-        const {result, game} = await post(url, data)
-        if([1, 4].includes(result)) {
-          this.lost = true
-        } else {
-          if(result === 6) {
-            this.showSnackbar('🙄')
-          } else {
-            let message = ''
-            switch(result) {
-              case 3:
-                message = 'Nope'
-                break;
-              case 2:
-                message = 'Well done'
-                break;
-              case 8:
-                message = 'Ok, moving on then'
-                break;
-            }
-            this.showSnackbar(message)
-          }
-          console.log(game, this.game)
-          this.game = game
-        }
-        return result
-      },
-      player1Attempted(word) {
-        if(this.game.found.includes(word)) { return false }
-        return this.game.player1.attempted_words.includes(word)
-      },
-      player2Attempted(word) {
-        if(this.game.found.includes(word)) { return false }
-        return this.game.player2.attempted_words.includes(word)
-      }
-    }
+    })
   })
 </script>
 {% endblock %}

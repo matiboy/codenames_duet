@@ -15,10 +15,12 @@
     </v-content>
 </v-app>
 </div>
+{% block cdn %}
 <script src="https://source.zoom.us/1.7.2/lib/vendor/lodash.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vue@2.x/dist/vue.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vuetify@2.x/dist/vuetify.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" integrity="sha256-Fk/Cwcnq8KA6qN/bhV6C5BpcaSL7rYuzI4EWIH4mvvc=" crossorigin="anonymous"></script>
+{% endblock %}
 <script>
   window.post = function(url, data) {
     return fetch(url, {

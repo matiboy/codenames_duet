@@ -65,6 +65,7 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
 
   return {
     'words': all_words,
+    'decks': decks,
     'player1': {
       'name': player1_name,
       'black': player1_black,
@@ -84,6 +85,8 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
     'initialBystanders': bystanders,
     'agents': agents,
     'found': [],
+    'lost': False,
+    'won': False,
     'keys': 0,
   }
 
@@ -95,6 +98,7 @@ WIN = 5
 ALREADY_GUESSED = 6
 INVALID_WORD = 7
 STOPPED_GUESSING = 8
+NOT_YOUR_TURN = 9
 
 def get_other_player(player: int) -> int:
   return 3 - player
@@ -107,6 +111,7 @@ def stop_guessing(game, player: int) -> (int, dict):
   game['bystanders'] -= 1
   game['next_up'] = get_other_player(player)
   if game['bystanders'] <= 0:
+    game['lost'] = True
     return (NO_MORE_TIME, game)
   return (STOPPED_GUESSING, game)
 
@@ -116,17 +121,22 @@ def guess(game, player: int, word: str) -> (int, dict):
   other_player_key = f'player{other_player}' 
   player_object = game[player_key]
   other_player_object = game[other_player_key]
+  if game['next_up'] is not None and player != game['next_up']:
+    return (NOT_YOUR_TURN, game)
   if word not in game['words']:
     return (INVALID_WORD, game)
   if word in player_object['attempted_words']:
     return (ALREADY_GUESSED, game)
+  # Passed all validations
   player_object['attempted_words'].append(word)
   if word in other_player_object['black']:
+    game['lost'] = True
     return (BLACK, game)
   if word in other_player_object['green']:
     game['next_up'] = player # player keeps playing
     game['found'].append(word)
     if game['found'].__len__() == game['agents']:
+      game['won'] = True
       return (WIN, game)
     else:
       return (GREEN, game)
@@ -134,6 +144,7 @@ def guess(game, player: int, word: str) -> (int, dict):
     game['bystanders'] -= 1
     game['next_up'] = other_player
     if game['bystanders'] == 0:
+      game['lost'] = True
       return (NO_MORE_TIME, game)
     return (YELLOW, game)
 
