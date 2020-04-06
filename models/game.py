@@ -59,3 +59,19 @@ class Attendee(db.Model):
 
 def get_attendee(game, player_token):
   return Attendee.query.with_parent(game).filter_by(token=player_token).first()
+
+def get_game(id: str, as_dict=False):
+  game = Game.query.filter_by(token=id).first()
+  if not as_dict:
+    return game
+  if game is not None:
+    return game_to_dict(game)
+
+def game_to_dict(game: Game) -> dict:
+  return json.loads(game.game_details)
+
+def update_game_details(game: dict, id: str):
+  db_game = get_game(id)
+  db_game.game_details = json.dumps(game)
+  db.session.commit()
+

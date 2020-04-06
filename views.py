@@ -1,7 +1,8 @@
 
 from app import app
-from flask import request, make_response, jsonify, render_template, redirect, url_for, send_from_directory
+from flask import request, make_response, abort, jsonify, render_template, redirect, url_for, send_from_directory
 import base64
+from functools import wraps
 import hmac
 import string
 import time
@@ -15,8 +16,10 @@ import random
 from words import DECKS
 import os
 import pusher
+from response import json_error, build_json_response
 from chime import create_attendee, create_meeting, get_client_from_env
-from models.game import get_attendee
+from models.game import get_attendee, update_game_details
+from request import game_or_404, attendee_or_404
 
 # @app.route('/signature')
 # def make_signature():
@@ -36,24 +39,12 @@ pusher_client = pusher.Pusher(
 
 @app.route('/delete_game')
 def delete_game():
+  # TODO this should be admin only
   id = request.args.get('id')
   game = get_game(id)
   db.session.delete(game)
   db.session.commit()
   return 'Ok'
-
-def get_game(id, as_dict=False):
-  game = Game.query.filter_by(token=id).first()
-  if not as_dict:
-    return game
-  if game is not None:
-    return json.loads(game.game_details)
-
-
-def update_game_details(game: dict, id: str):
-  db_game = get_game(id)
-  db_game.game_details = json.dumps(game)
-  db.session.commit()
 
 @app.route('/')
 def setup_game():
@@ -61,11 +52,9 @@ def setup_game():
   decks.sort()
   return render_template('setup.html', decks=decks)
 
-@app.route('/game/<game_id>', methods=['GET'])
-def start_game(game_id=None):
-  game = get_game(game_id, True)
-  if game is None:
-    return redirect(url_for('setup_game'))
+@app.route('/game/<game_id>/<player_token>', methods=['GET'])
+@game_or_404(redirect_to='setup_game')
+def get_game_details(db_game, game, db_attendee, **kwargs):
   game = safe_game(game, game_id)
   if request.is_json:
     return {
@@ -92,13 +81,11 @@ def start_new_game(game_id=''):
 
 
 @app.route('/game/<game_id>/player/<player_token>', methods=['GET'])
-def start_game_split(game_id='', player_token=''):
+@game_or_404(redirect_to='setup_game')
+@attendee_or_404
+def start_game_split(game_id='', player_token='', db_game=None, game=None, db_attendee=None):
   if request.is_json:
-    return start_game(game_id=game_id)
-
-  db_game = get_game(game_id)
-  if db_game is None:
-    return redirect(url_for('setup_game'))
+    return get_game_details(game_id=game_id, player_token=player_token)
 
   # Get the corresponding attendee
   db_attendee = get_attendee(db_game, player_token)
@@ -125,8 +112,6 @@ def start_game_split(game_id='', player_token=''):
   db_attendee.update_attendee_details(attendee)
 
   # Actual game stuff
-  game = get_game(game_id, True)
-  
   player_key = f'player{player_id}'
   player = dict(game[player_key])
   record_viewed(game, player_key)
@@ -142,6 +127,7 @@ def start_game_split(game_id='', player_token=''):
     pusher_key=os.environ['PUSHER_APP_KEY'],
     pusher_cluster='ap1',
     thisPlayerName=player['name'],
+    channel=build_channels(db_game)[player_id - 1],
     otherPlayerName= game[f'player{3-player_id}']['name']
   )
 
@@ -167,12 +153,10 @@ def build_game():
     player2 = db_game.add_pending_attendee(name=player2_name, index=2)
     game = safe_game(game, db_game.token)
     return {
-      'gameUrl': url_for('start_game', game_id=db_game.token),
-      'gameUrlPlayer1': url_for('start_game_split', game_id=db_game.token, player_id=player1.token),
-      'gameUrlPlayer2': url_for('start_game_split', game_id=db_game.token, player_id=player2.token),
-      'keyUrl': url_for('key', game_id=db_game.token),
+      'gameUrlPlayer1': url_for('start_game_split', game_id=db_game.token, player_token=player1.token),
+      'gameUrlPlayer2': url_for('start_game_split', game_id=db_game.token, player_token=player2.token),
     }
-    
+
 
 @app.route('/key/<game_id>', endpoint='key')
 def key(game_id):
@@ -193,26 +177,61 @@ def key(game_id):
       [game['words'].pop(0) for _ in range(5)] for __ in range(5)
     ])
 
-@app.route('/stop/<game_id>', methods=['POST'])
-def stop_route(game_id):
+@app.route('/stop/<game_id>/<player_token>', methods=['POST'])
+@game_or_404
+def stop_route(game_id, player_token):
   content = request.get_json()
   game = get_game(game_id, as_dict=True)
-  result, game = stop_guessing(game, content['player'])
+  attendee = get_attendee(get_game(game_id), player_token)
+  if attendee is None:
+    return {
+      'result': 0
+    }
+  index = attendee.index
+  result, game = stop_guessing(game, index)
   update_game_details(game, game_id)
-  pusher_client.trigger(game_id, 'game_update', {'updater': content['player']})
+  channel = get_other_player_channel(game_id, player_token)
+  pusher_client.trigger(channel, 'game_update', {})
   return {
     'result': result,
     'game': safe_game(game, game_id)
   }
 
 @app.route('/guess/<game_id>', methods=['POST'])
-def guess_route(game_id):
+@app.route('/guess/<game_id>/<player_token>', methods=['POST'])
+def guess_route(game_id, player_token=''):
   content = request.get_json()
   game = get_game(game_id, as_dict=True)
-  result, game = guess(game, **content)
+  index = content.get('player')
+  # Wihtout token for backwards compatibility
+  if player_token:
+    attendee = get_attendee(get_game(game_id), player_token)
+    if attendee is None:
+      return {
+        'result': 0
+      }
+    index = attendee.index
+  result, game = guess(game, word=content['word'], player=index)
   update_game_details(game, game_id)
-  pusher_client.trigger(game_id, 'game_update', {'updater': content['player']})
+  channel = get_other_player_channel(game_id, player_token)
+  app.logger.info(f'Triggering update on socket channel {channel}')
+  pusher_client.trigger(channel, 'game_update', {})
   return {
     'result': result,
     'game': safe_game(game, game_id)
   }
+
+def get_other_player_channel(game_id, player_token):
+  game = get_game(game_id)
+  (attendee1, attendee2) = game.attendees
+  if attendee1.token == player_token:
+    return make_channel(game_id, attendee2.token)
+  else:
+    return make_channel(game_id, attendee1.token)
+
+def make_channel(game_id, token):
+  return f'{game_id}@{token}'
+
+def build_channels(game: Game):
+  (attendee1, attendee2) = game.attendees
+  return make_channel(game.token, attendee1.token), make_channel(game.token, attendee2.token)

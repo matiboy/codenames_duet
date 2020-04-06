@@ -28,27 +28,15 @@
       </v-col>
     </v-row>
     <v-row justify="center"><v-btn :loading="loading" :disabled="decks.length === 0" color="success" @click="create">Create game</v-btn></v-row>
-    <v-row v-if="gameUrl">
-      <v-col cols="6">
-        <h3>One-view version</h3>
-        <v-row>
-          <a :href="gameUrl" mr-2>Join the game here</a>
-          <v-icon @click="copyToClipBoard('gameUrl')">mdi-content-copy</v-icon>
-        </v-row>
-        <v-row>
-          <img :src="qrData" mr-2></a>
-          <v-icon @click="copyToClipBoard('keyUrl')">mdi-content-copy</v-icon>
-          <em>Note that you can only load this link once per player</em>
-        </v-row>
-      </v-col>
-      <v-col cols="6">
+    <v-row v-if="gameUrlPlayer1">
+      <v-col cols="12">
         <h3>Separate screens version</h3>
         <v-row>
-          <v-col>
+          <v-col cols="6">
             Join as <a :href="gameUrlPlayer1" mr-2 v-text="player1Name"></a>
             <v-icon @click="copyToClipBoard('gameUrlPlayer1')">mdi-content-copy</v-icon>
           </v-col>
-          <v-col>
+          <v-col cols="6">
             Join as <a :href="gameUrlPlayer2" mr-2 v-text="player2Name"></a>
             <v-icon @click="copyToClipBoard('gameUrlPlayer2')">mdi-content-copy</v-icon>
           </v-col>
@@ -109,16 +97,14 @@ window.$vm = new Vue({
       this.gameUrl = ''
       this.keyUrl = ''
       try {
-        const {gameUrl, keyUrl, gameUrlPlayer1, gameUrlPlayer2} = await window.post('/game', {
+        const {gameUrlPlayer1, gameUrlPlayer2} = await window.post('/game', {
           player1Name: this.player1Name,
           player2Name: this.player2Name,
           bystanders: this.bystanders,
           decks: this.decks,
         })
-        this.gameUrl = gameUrl
         this.gameUrlPlayer1 = gameUrlPlayer1
         this.gameUrlPlayer2 = gameUrlPlayer2
-        this.keyUrl = keyUrl
       } catch(e) {
       }
       this.loading = false

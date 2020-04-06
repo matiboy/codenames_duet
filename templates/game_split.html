@@ -21,8 +21,13 @@
     h1 {
       font-size: 5em;
     }
-    .found {
-      filter: drop-shadow(0 0 10px green) drop-shadow(0 0 10px green)
+    .container .found {
+      filter: drop-shadow(0 0 10px green) drop-shadow(0 0 10px green);
+      background-color: green;
+    }
+    .container .found .v-card__text {
+      color: green;
+      border: 0;
     }
     .good {
       background-color: green;
@@ -65,14 +70,13 @@
     </v-row> -->
     <v-row>
       <v-col cols="2">
-        <table id="key" border="0">
+        <table id="key" border="0" class="mb-4">
           {% for row in words %}
           <tr>
             {% for word in row %}<td {% if word in player.green %}class="good"{% elif word in player.black %}class="assassin"{%endif%}></td>{%endfor%}
           </tr>
           {% endfor %}
         </table>
-        <p v-if="playerStatus !== 'open'">You are now <span class="status" v-text="playerStatusText"></span></p>
         <div id="flow-load-devices" class="flow" v-show="videoStep === 'flow-load-devices'">
           <v-progress-circular indeterminate></v-progress-circular>
           <small>Reading your microphone and camera details</small>
@@ -83,7 +87,10 @@
             <v-row>
               <v-col class="nameplate">{{thisPlayerName}}</v-col>
               <v-col>
-                <v-btn icon @click="pauseSelf"><v-icon>mdi-pause</v-icon></v-btn>
+                <v-btn icon @click="toggleVideoSelf">
+                  <v-icon v-if="!localPaused">mdi-pause</v-icon>
+                  <v-icon v-if="localPaused">mdi-play</v-icon>
+                </v-btn>
               </v-col>
             </v-row>
           </div>
@@ -136,10 +143,22 @@
     
       </v-col>
       <v-col cols="9">
+        <v-row align="center" justify="center" v-if="!noPlayer">
+          <v-col cols="auto">
+            <span v-show="!iAmGuessing"><span v-text="nextPlayer.name"></span>'s</span><span v-show="iAmGuessing">MY</span> turn to <b>GUESS</b>
+          </v-col>
+          <v-col cols="1"></v-col>
+          <v-col cols="2">
+            <v-btn color="warning" outlined @click="stopGuessing" v-show="iAmGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
+          </v-col>
+        </v-row>
+        <v-row align="center" justify="center" v-if="noPlayer">
+          Anyone can start with the first hint.
+        </v-row>
         <v-row v-for="row, i in rows" :key="i">
           <v-col cols="1"></v-col>
           <v-col cols="2" v-for="word, j in row" :key="j">
-            <v-card @click="pointed(word)" :class="{found: isFound(word)}">
+            <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">
               <v-card-text class="text-center">
                 <div class="attempted-wrapper">
                   <v-icon v-if="player1Attempted(word)">mdi-numeric-1-circle</v-icon>
@@ -159,20 +178,6 @@
         </v-col>
       </v-col>
     </v-row>
-    <v-col>
-      <v-row align="center" justify="center" v-if="!noPlayer">
-        <v-col cols="auto">
-          <span v-text="nextPlayer.name"></span>'s turn to GUESS
-        </v-col>
-        <v-col cols="1"></v-col>
-        <v-col cols="2">
-          <v-btn color="warning" outlined @click="stopGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
-        </v-col>
-      </v-row>
-      <v-row align="center" justify="center" v-if="noPlayer">
-        Anyone can start with the first hint.
-      </v-row>
-    </v-col>
   </v-container>
   <v-overlay :value="ended" :color="overlayColor">
     <span v-text="won"></span>
@@ -194,6 +199,7 @@
   window.playerNumber = {{player_number}}
   window.PUSHER_KEY = '{{pusher_key}}'
   window.PUSHER_CLUSTER = '{{pusher_cluster}}'
+  window.channel = '{{channel}}'
   
   window.$vm = new Vue({
     ...CovidNames.game_split.default,

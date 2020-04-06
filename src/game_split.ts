@@ -5,7 +5,7 @@ import { logger, QualityMappings } from './chime';
 import { TestSound } from './chime/test-sound'
 // import Pusher from 'pusher-js' // Broken import :/ using window for now
 import 'pusher-js'
-import { Game } from './game.interface';
+import { Game, Attendee } from './game.interface';
 
 let meetingSession: DefaultMeetingSession
 let audioVideo: AudioVideoFacade
@@ -49,7 +49,7 @@ const getAudioOutputElement = (): HTMLAudioElement => {
   return document.getElementById('meeting-audio') as HTMLAudioElement
 }
 
-const getAttendee = () => {
+const getAttendee = (): Attendee => {
   return (window as any).ATTENDEE
 }
 
@@ -116,7 +116,7 @@ export default {
       pusher = new (window as any).Pusher((window as any).PUSHER_KEY, {
         cluster: (window as any).PUSHER_CLUSTER,
       });
-      const channel = pusher.subscribe(getGame().id)
+      const channel = pusher.subscribe((window as any).channel)
       channel.bind('game_update', (data: UpdateMessage) => {
         console.log(data, getPlayerNumber(), data.updater !== getPlayerNumber())
         if(data.updater !== getPlayerNumber()) {
@@ -178,6 +178,9 @@ export default {
           {value: "540p", text: "540p (qHD) @ 15 fps (1.4 Mbps max)"},
           {value: "720p", text: "720p (HD) @ 15 fps (1.4 Mbps max)"},
         ]
+      },
+      iAmGuessing() {
+        return this.playerStatus === 'guess'
       },
       playerStatus() {
         if(!this.game.next_up) {
@@ -243,8 +246,13 @@ export default {
         }).then(x => x.json())
         .then(x => this.game = x.game)
       },
-      pauseSelf() {
-        audioVideo.pauseVideoTile(localTileId)
+      toggleVideoSelf() {
+        if(this.localPaused) {
+          audioVideo.unpauseVideoTile(localTileId)
+        } else {
+          audioVideo.pauseVideoTile(localTileId)
+        }
+        this.localPaused = !this.localPaused
       },
       selectAudioInput(deviceId: string) {
         audioVideo.chooseAudioInputDevice(deviceId)
@@ -299,15 +307,18 @@ export default {
         this.snackbarText = text
       },
       async stopGuessing() {
-        await this.serverAction(`/stop/${this.game.id}`, {
+        await this.serverAction(`/stop/${this.game.id}/${getAttendee().ExternalUserId}`, {
           player: this.player
         })
       },
       async pointed(word: string) {
+        if(this.game.next_up !== null && this.game.next_up !== getPlayerNumber()) {
+          return
+        }
         if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
           return
         }
-        const result = await this.serverAction(`/guess/${this.game.id}`, {
+        const result = await this.serverAction(`/guess/${this.game.id}/${getAttendee().ExternalUserId}`, {
           word,
           player: this.player || this.firstPlayer
         })

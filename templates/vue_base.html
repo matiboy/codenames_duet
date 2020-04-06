@@ -9,7 +9,15 @@
 <div id="app">
   <v-app>
     <v-content>
-      <v-banner single-line>CoVIDenames {% block banner_extra %}{%endblock%}</v-banner>    
+      <v-system-bar style="height: 80px;">
+          <v-col>CoVIDenames</v-col>
+          <v-col>
+            <v-row align="center">
+            <img height="80" width="80" src="https://drakemall-files.s3.amazonaws.com/Codename-cj8yfzpnj00kq0ounbgpaikx6.png">
+            Support this awesome game, <br><a href="https://czechgames.com/en/codenames-duet/">buy it from its publisher, please!</a>
+            </v-row>
+          </v-col>
+      </v-system-bar>    
       {% block vuetemplate%}{%endblock%}
       <v-snackbar :color="snackbarColor" :value="snackbar" @input="snackbar = false" class="black--text"><span v-text="snackbarText"></span></v-snackbar>
     </v-content>

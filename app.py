@@ -4,6 +4,9 @@ from flask_sqlalchemy import SQLAlchemy
 import sys
 from config import Config
 from flask_migrate import Migrate
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 app.config.from_object(Config)

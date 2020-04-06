@@ -4,6 +4,12 @@ export interface Player {
   name: string;
 }
 
+export interface Attendee {
+  AttendeeId: string;
+  ExternalUserId: string;
+  JoinToken: string;
+}
+
 export interface Game {
     agents: number;
     bystanders: number;
