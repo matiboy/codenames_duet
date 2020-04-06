@@ -80,7 +80,7 @@ def start_new_game(game_id=''):
   
 
 
-@app.route('/game/<game_id>/player/<player_token>', methods=['GET'])
+@app.route('/game/<game_id>/player/<player_token>', methods=['GET'], endpoint='start_game_split')
 @game_or_404(redirect_to='setup_game')
 @attendee_or_404
 def start_game_split(game_id='', player_token='', db_game=None, game=None, db_attendee=None):
@@ -177,7 +177,7 @@ def key(game_id):
       [game['words'].pop(0) for _ in range(5)] for __ in range(5)
     ])
 
-@app.route('/stop/<game_id>/<player_token>', methods=['POST'])
+@app.route('/stop/<game_id>/<player_token>', methods=['POST'], endpoint='stop_route')
 @game_or_404
 def stop_route(game_id, player_token):
   content = request.get_json()
@@ -190,30 +190,22 @@ def stop_route(game_id, player_token):
   index = attendee.index
   result, game = stop_guessing(game, index)
   update_game_details(game, game_id)
-  channel = get_other_player_channel(game_id, player_token)
+  channel = get_other_player_channel(game, player_token)
   pusher_client.trigger(channel, 'game_update', {})
   return {
     'result': result,
     'game': safe_game(game, game_id)
   }
 
-@app.route('/guess/<game_id>', methods=['POST'])
-@app.route('/guess/<game_id>/<player_token>', methods=['POST'])
-def guess_route(game_id, player_token=''):
+@app.route('/guess/<game_id>/<player_token>', methods=['POST'], endpoint='guess_route')
+@game_or_404()
+@attendee_or_404
+def guess_route(game_id, game, db_game, player_token, db_attendee):
   content = request.get_json()
-  game = get_game(game_id, as_dict=True)
-  index = content.get('player')
-  # Wihtout token for backwards compatibility
-  if player_token:
-    attendee = get_attendee(get_game(game_id), player_token)
-    if attendee is None:
-      return {
-        'result': 0
-      }
-    index = attendee.index
+  index = db_attendee.index
   result, game = guess(game, word=content['word'], player=index)
   update_game_details(game, game_id)
-  channel = get_other_player_channel(game_id, player_token)
+  channel = get_other_player_channel(db_game, player_token)
   app.logger.info(f'Triggering update on socket channel {channel}')
   pusher_client.trigger(channel, 'game_update', {})
   return {
@@ -221,13 +213,12 @@ def guess_route(game_id, player_token=''):
     'game': safe_game(game, game_id)
   }
 
-def get_other_player_channel(game_id, player_token):
-  game = get_game(game_id)
+def get_other_player_channel(game: Game, player_token):
   (attendee1, attendee2) = game.attendees
   if attendee1.token == player_token:
-    return make_channel(game_id, attendee2.token)
+    return make_channel(game.token, attendee2.token)
   else:
-    return make_channel(game_id, attendee1.token)
+    return make_channel(game.token, attendee1.token)
 
 def make_channel(game_id, token):
   return f'{game_id}@{token}'

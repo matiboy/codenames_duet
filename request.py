@@ -3,7 +3,7 @@ from models.game import game_to_dict, get_attendee, get_game
 from flask import abort, redirect, url_for
 
 def game_or_404(redirect_to=None):
-  def callable(original_function):
+  def callable(original_function, **kwargs):
     @wraps(original_function)
     def fn(*args, **kwargs):
       game_id = kwargs['game_id']

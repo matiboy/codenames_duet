@@ -224,7 +224,7 @@ export default {
         return [
         1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
         ].slice(0, this.game.initialBystanders)
-        .map(i => `https://i.picsum.photos/id/${i}/65/65.jpg`)
+        .map(i => `https://i.picsum.photos/id/${i}/60/60.jpg`)
       },
       ended() {
         return (this.lost || this.won)

@@ -10,10 +10,22 @@
       padding-bottom: 40px;
       border: 2px solid white;
     }
+    .v-icon.bystanders-dead-icon {
+      position: absolute;
+      font-size: 60px;
+      text-align: center;
+      margin: auto;
+      margin: 4px;
+      color: red;
+    }
     .attempted-wrapper {
       position: absolute;
       top: 2px;
       right: 5px;
+    }
+    .side-columns p { 
+      font-size: 11px;
+      line-height: 13px;
     }
     img.dead {
       filter: grayscale(1) blur(3px);
@@ -58,6 +70,10 @@
     }
     video#video-0, video#video-16, video#video-preview {
       width: 100%;
+    }
+    .col-one-fifth {
+      flex: 0 0 20%;
+      max-width: 20%;
     }
   </style>
 {% endblock %}
@@ -140,9 +156,8 @@
             </div>
           </div>
         </div>
-    
       </v-col>
-      <v-col cols="9">
+      <v-col cols="10">
         <v-row align="center" justify="center" v-if="!noPlayer">
           <v-col cols="auto">
             <span v-show="!iAmGuessing"><span v-text="nextPlayer.name"></span>'s</span><span v-show="iAmGuessing">MY</span> turn to <b>GUESS</b>
@@ -155,27 +170,33 @@
         <v-row align="center" justify="center" v-if="noPlayer">
           Anyone can start with the first hint.
         </v-row>
-        <v-row v-for="row, i in rows" :key="i">
-          <v-col cols="1"></v-col>
-          <v-col cols="2" v-for="word, j in row" :key="j">
-            <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">
-              <v-card-text class="text-center">
-                <div class="attempted-wrapper">
-                  <v-icon v-if="player1Attempted(word)">mdi-numeric-1-circle</v-icon>
-                  <v-icon v-if="player2Attempted(word)">mdi-numeric-2-circle</v-icon>
-                </div>
-                <div v-text="word"></div>
-              </v-card-text>
-            </v-card>
+        <v-row>
+          <v-col cols="1" class="side-columns" align="center" justify="center">
+            <p>Agents</p>
           </v-col>
-          <v-col cols="1"></v-col>
+          <v-col cols="10">
+            <v-row v-for="row, i in rows" :key="i">
+              <v-col class="col-one-fifth" v-for="word, j in row" :key="j">
+                <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">
+                  <v-card-text class="text-center">
+                    <div class="attempted-wrapper">
+                      <v-icon v-if="player1Attempted(word)">mdi-numeric-1-circle</v-icon>
+                      <v-icon v-if="player2Attempted(word)">mdi-numeric-2-circle</v-icon>
+                    </div>
+                    <div v-text="word"></div>
+                  </v-card-text>
+                </v-card>
+              </v-col>
+            </v-row>
+          </v-col>
+          <v-col cols="1" class="side-columns" align="center" justify="center">
+            <p>Innocent Bystanders</p>
+            <div v-for="img, i in bystanders" :key="img" :class="{dead: i >= game.bystanders}">
+              <v-icon class="bystanders-dead-icon" v-if="i >= game.bystanders-1">mdi-emoticon-dead-outline</v-icon>
+              <img :src="img" class="ml-1 mr-1">
+            </div>
+          </v-col>
         </v-row>
-      </v-col>
-      <v-col cols="1">
-        <v-col align="center" justify="center">
-          <small>Innocent Bystanders</small><br>
-          <img v-for="img, i in bystanders" :key="img" :src="img" :class="{dead: i >= game.bystanders}" class="ml-1 mr-1">
-        </v-col>
       </v-col>
     </v-row>
   </v-container>
