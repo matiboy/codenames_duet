@@ -72,6 +72,7 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
       'green': player1_green,
       'attempted_words': [],
       'loaded': False,
+      'hints': []
     },
     'next_up': None,
     'player2': {
@@ -79,7 +80,8 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
       'black': player2_black,
       'green': player2_green,
       'attempted_words': [],
-      'loaded': False
+      'loaded': False,
+      'hints': []
     },
     'bystanders': bystanders,
     'initialBystanders': bystanders,
@@ -105,6 +107,17 @@ def get_other_player(player: int) -> int:
 
 def record_viewed(game, player_key: str):
   game[player_key]['loaded'] = True
+  return game
+
+def give_hint(game, db_attendee, hint_text: str, hint_count: int):
+  game['hint'] = {
+    'word': hint_text,
+    'count': hint_count
+  }
+  get_player_dict(game, db_attendee.index)['hints'].append(game['hint'])
+  # If not yet started, we set up who is next; otherwise it doesnt change
+  if game['next_up'] is None:
+    game['next_up'] = get_other_player(db_attendee.index)
   return game
 
 def stop_guessing(game, player: int) -> (int, dict):
@@ -143,10 +156,14 @@ def guess(game, player: int, word: str) -> (int, dict):
   else:
     game['bystanders'] -= 1
     game['next_up'] = other_player
+    game['hint'] = {}
     if game['bystanders'] == 0:
       game['lost'] = True
       return (NO_MORE_TIME, game)
     return (YELLOW, game)
+
+def get_player_dict(game, player: int):
+  return game[f'player{player}']
 
 class Game(object):
   players = []

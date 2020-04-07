@@ -78,6 +78,9 @@
     .agents .v-icon {
       font-size: 35px !important;
     }
+    .hint {
+      font-size: 20px;
+    }
   </style>
 {% endblock %}
 {% block vuetemplate %}
@@ -100,6 +103,10 @@
                   <v-icon v-if="!localPaused">mdi-pause</v-icon>
                   <v-icon v-if="localPaused">mdi-play</v-icon>
                 </v-btn>
+                <v-btn icon @click="toggleAudioSelf">
+                  <v-icon v-if="!localMuted">mdi-microphone</v-icon>
+                  <v-icon v-if="localMuted">mdi-microphone-off</v-icon>
+                </v-btn>
               </v-col>
             </v-row>
           </div>
@@ -108,10 +115,8 @@
             <v-row>
               <v-col class="nameplate">{{otherPlayerName}}</v-col>
               <v-col>
-                <v-btn icon @click="toggleVideoSelf">
-                  <v-icon v-if="!otherMuted">mdi-microphone</v-icon>
-                  <v-icon v-if="otherMuted">mdi-microphone-off</v-icon>
-                </v-btn>
+                <v-icon v-if="!otherMuted">mdi-microphone</v-icon>
+                <v-icon v-if="otherMuted">mdi-microphone-off</v-icon>
               </v-col>
             </v-row>
           </div>
@@ -155,13 +160,16 @@
           <v-col cols="auto">
             <span v-show="!iAmGuessing"><span v-text="nextPlayer.name"></span>'s</span><span v-show="iAmGuessing">MY</span> turn to <b>GUESS</b>
           </v-col>
-          <v-col cols="1"></v-col>
           <v-col cols="2">
             <v-btn color="warning" outlined @click="stopGuessing" v-show="iAmGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
+          </v-col>
+          <v-col cols="2">
+            <div class="hint">Hint: <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)</div>
           </v-col>
         </v-row>
         <v-row align="center" justify="center" v-if="noPlayer">
           Anyone can start with the first hint.
+          <v-btn outlined class="ml-5" @click.stop="hintDialog = true">Give hint</v-btn>
         </v-row>
         <v-row>
           <v-col cols="1" class="side-columns agents" align="center" justify="center">
@@ -169,7 +177,12 @@
             <v-icon v-for="i in foundAgents" color="success" :key="`check${i}`">mdi-check</v-icon>
             <v-icon v-for="i in unfoundAgents" :key="`question${i}`">mdi-head-question</v-icon>
           </v-col>
-          <v-col cols="10">
+          <v-col cols="10" style="position: relative">
+            <v-overlay
+              absolute
+              :opacity="0"
+              :value="!iAmGuessing"
+            ></v-overlay>
             <v-row v-for="row, i in rows" :key="i">
               <v-col class="col-one-fifth" v-for="word, j in row" :key="j">
                 <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">
@@ -207,6 +220,35 @@
       </v-card>
     </v-footer>
   </v-container>
+  <v-dialog v-model="hintDialog" max-width="390">
+    <v-card>
+      <v-card-title class="headline dark">Give hint</v-card-title>
+      <v-card-text>
+        Hint should be a single word, and a number
+        <v-text-field label="Word" v-model="giveHint.text"></v-text-field>
+        <v-text-field label="Count" type="number" v-model="giveHint.count"></v-text-field>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn
+          color="green darken-1"
+          dark
+          outlined
+          :disabled="giveHint.text === ''"
+          @click="confirmHint"
+        >
+          Confirm
+        </v-btn>
+        <v-btn
+          text
+          @click="hintDialog = false"
+        >
+          Cancel
+        </v-btn>
+      </v-card-actions>
+    </v-card>
+
+  </v-dialog>
   <v-dialog v-model="rulesDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
     <v-card>
       <v-toolbar dark>
@@ -230,11 +272,11 @@
           <v-list-item-content>
             <v-list-item-title>What names?</v-list-item-title>
             <v-list-item-subtitle>In the top left, you will see your "Key" (a rectangle with green, black and white boxes). Mentally align the colors in the key to the words in the main area;
-              <ul>
-                <li>the "green" words are your agents' names - what you would want the other player to guess; you have 9 of those;</li>
-                <li>the "black" words are your assassins' names - what you would want the other player to guess; you have 3 of those;</li>
-                <li>the "white" words are innocent bystanders; they are not good and not bad.</li>
-              </ul>
+              <v-list single-line>
+                <v-list-item>the "green" words are your agents' names - what you would want the other player to guess; you have 9 of those;</v-list-item>
+                <v-list-item>the "black" words are your assassins' names - what you would want the other player to guess; you have 3 of those;</v-list-item>
+                <v-list-item>the "white" words are innocent bystanders; they are not good and not bad.</v-list-item>
+              </v-list>
             </v-list-item-subtitle>
           </v-list-item-content>
         </v-list-item>

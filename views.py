@@ -8,7 +8,7 @@ import string
 import time
 import hashlib
 from models import Room, Game, Attendee
-from game import guess, make_game, record_viewed, safe_game, stop_guessing
+from game import give_hint, guess, make_game, record_viewed, safe_game, stop_guessing
 from app import db
 from utils import id_generator
 import json
@@ -125,6 +125,26 @@ def start_game_split(game_id, player_token, db_game, game, db_attendee, **kwargs
     otherPlayerName= game[f'player{3-player_id}']['name']
   )
 
+@app.route('/hint/<game_id>/<player_token>', endpoint='hint_route')
+@game_or_404()
+@attendee_or_404
+def hint(player_token, db_attendee, db_game, game, game_id, **kwargs):
+  # TODO save that in dB?
+  other_channel = get_other_player_channel(db_game, player_token)
+  # TODO this is actually probably not needed, since we refresh the game
+  # pusher_client.trigger(other_channel, 'new_hint', {
+  #   'word': request.args.get('word'),
+  #   'count': request.args.get('count'),
+  # })
+  game = give_hint(game, db_attendee, request.args.get('word'), request.args.get('count'))
+  update_game_details(game, game_id)
+  pusher_client.trigger(other_channel, 'game_update', {})
+
+  return {
+    'result': 1,
+    'game': game
+  }
+
 @app.route('/dynamic/<game_id>/<player_token>.js', endpoint='dynamic_split_js')
 @game_or_404()
 @attendee_or_404
@@ -136,6 +156,7 @@ def player_js(player_token, db_attendee, db_game, game, game_id):
     'black': player_dict['black'],
     'green': player_dict['green']
   }
+  channels = build_channels(db_game)
   game = safe_game(game, game_id)
   response = make_response(
     render_template('javascript/game_split_data.txt', 
@@ -146,10 +167,12 @@ def player_js(player_token, db_attendee, db_game, game, game_id):
       pusher_cluster='ap1',
       key=key,
       player_number=player_index,
-      channel=build_channels(db_game)[player_index],
       urls={
         'key': url_for('key', game_id=game_id, player_token=player_token),
-        'game': url_for('game_details', game_id=game_id)
+        'game': url_for('game_details', game_id=game_id),
+        'game_channel': channels[0],
+        'player_channel': channels[player_index], # one-indexed
+        'hint': url_for('hint_route', player_token=player_token, game_id=game_id)
       }
     )
   )

@@ -110,6 +110,10 @@ export default {
       snackbarColor: 'white',
       rulesDialog: false,
       hintDialog: false,
+      giveHint: {
+        text: '',
+        count: 2
+      },
       loading: false,
       firstPlayer: null,
       selectedAudioInput: null,
@@ -122,6 +126,7 @@ export default {
       videoStep: Flows.LOAD_DEVICES,
       localPaused: false,
       otherMuted: false,
+      localMuted: false,
       agents: range(0, 15),
       hint: {}
     },
@@ -130,7 +135,8 @@ export default {
       pusher = new (window as any).Pusher((window as any).PUSHER_KEY, {
         cluster: (window as any).PUSHER_CLUSTER,
       });
-      const channel = pusher.subscribe((window as any).channel)
+      const channel = pusher.subscribe(getUrls().player_channel)
+      // const gameChannel = pusher.subscribe(getUrls().game_channel)
       channel.bind('game_update', (data: UpdateMessage) => {
         console.log(data, getPlayerNumber(), data.updater !== getPlayerNumber())
         if(data.updater !== getPlayerNumber()) {
@@ -144,6 +150,7 @@ export default {
         }
       });
       channel.bind('new_hint', (data: HintMessage) => {
+        anotherLogger.info(`New hint! ${data}`)
         this.hint = data
       });
       // Chime stuff
@@ -266,6 +273,13 @@ export default {
         await post(`/game/${getGame().id}/new`, {})
         this.refreshGame()
       },
+      async confirmHint() {
+        this.hintDialog = false
+        const {result, game} = await fetch(`${getUrls().hint}?word=${this.giveHint.text}&count=${this.giveHint.count}`)
+          .then(x => x.json())
+        console.log(result, game)
+        this.game = game
+      },
       refreshGame() {
         fetch(getUrls().game, {
           headers: {
@@ -289,6 +303,14 @@ export default {
           audioVideo.stopLocalVideoTile()
         }
         this.localPaused = !this.localPaused
+      },
+      toggleAudioSelf() {
+        if(this.localMuted) {
+          audioVideo.realtimeUnmuteLocalAudio()
+        } else {
+          audioVideo.realtimeMuteLocalAudio()
+        }
+        this.localMuted = !this.localMuted
       },
       selectAudioInput(deviceId: string) {
         audioVideo.chooseAudioInputDevice(deviceId)
