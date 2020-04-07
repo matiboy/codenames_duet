@@ -123,6 +123,7 @@ def give_hint(game, db_attendee, hint_text: str, hint_count: int):
 def stop_guessing(game, player: int) -> (int, dict):
   game['bystanders'] -= 1
   game['next_up'] = get_other_player(player)
+  game['hint'] = {}
   if game['bystanders'] <= 0:
     game['lost'] = True
     return (NO_MORE_TIME, game)

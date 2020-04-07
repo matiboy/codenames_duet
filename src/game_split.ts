@@ -275,9 +275,9 @@ export default {
       },
       async confirmHint() {
         this.hintDialog = false
-        this.giveHint = {text: '', count: 2}
         const {result, game} = await fetch(`${getUrls().hint}?word=${this.giveHint.text}&count=${this.giveHint.count}`)
-          .then(x => x.json())
+        .then(x => x.json())
+        this.giveHint = {text: '', count: 2}
         this.game = game
       },
       refreshGame() {
