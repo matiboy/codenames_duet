@@ -110,6 +110,8 @@ export default {
       snackbarColor: 'white',
       rulesDialog: false,
       hintDialog: false,
+      contactDialog: false,
+      buyMeDialog: false,
       giveHint: {
         text: '',
         count: 2
@@ -390,7 +392,9 @@ export default {
       async serverAction(url: string, data: any) {
         this.loading = true
         const {result, game} = await post(url, data)
+        this.game = game
         if([1, 4].includes(result)) {
+          // The lost/win status is in the game already now
         } else {
           if(result === 6) {
             this.showSnackbar('🙄')
@@ -409,7 +413,6 @@ export default {
             }
             this.showSnackbar(message)
           }
-          this.game = game
         }
         return result
       },

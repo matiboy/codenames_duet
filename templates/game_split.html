@@ -180,7 +180,7 @@
             </v-row>
             <v-row v-show="!iAmGuessing">
               <v-btn outlined v-show="!game.hint" class="ml-5" :elevation="5" @click.stop="hintDialog = true">Give hint</v-btn>
-              <v-col v-show="game.hint.word">
+              <v-col v-show="!game.hint.word">
                 <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)
               </v-col>
             </v-row>
@@ -235,7 +235,8 @@
         class="text-center"
       >
         <v-btn class="mr-4" outlined color="info" @click="rulesDialog = true">Rules</v-btn>
-        <v-btn outlined color="warning">Disclaimer</v-btn>
+        <v-btn outlined color="warning" @click="contactDialog=true">Contact me</v-btn>
+        <v-btn outlined color="success" @click="buyMeDialog=true">Buy me a beer/coffee</v-btn>
       </v-card>
     </v-footer>
   </v-container>
@@ -268,6 +269,53 @@
     </v-card>
 
   </v-dialog>
+  <v-dialog v-model="buyMeDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
+    <v-card>
+      <v-toolbar dark>
+        <v-btn icon dark @click="buyMeDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+        <v-toolbar-title>I'd rather you bought the game</v-toolbar-title>
+        <v-spacer></v-spacer>
+      </v-toolbar>
+      <v-container>
+        <p>As much as I appreciate the thought and good intentions of the people who clicked this button, I did not create this site for personal gain.</p>
+        <p>I would much rather prefer if your <a href="https://czechgames.com/en/codenames-duet/" target="_blank">generosity was used to reward the creator of the game</a>.</p>
+        <p>It would be great to hear your feedback though; you can check the "Contact me" section for that.</p>
+      </v-container>
+    </v-card>
+  </v-dialog>
+  <v-dialog v-model="contactDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
+    <v-card>
+      <v-toolbar dark>
+        <v-btn icon dark @click="contactDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+        <v-toolbar-title>Contact me</v-toolbar-title>
+        <v-spacer></v-spacer>
+      </v-toolbar>
+      <v-container>
+        <p>I am in no way affiliated with the Codenames game, its author or publisher.</p>
+        <p>Honestly, this here site was driven by a blend of
+          <ul>
+            <li>the need for a proof of concept for using AWS Chime SDK</li>
+            <li>my appreciation for the Codenames game</li>
+            <li>the boredom of #stayAtHome #Covid19 lockdown period early 2020</li>
+          </ul>
+        </p>
+        <p>If you (pick one)
+          <ul>
+            <li>like the site,</li>
+            <li>take issue with the legality of it,</li>
+            <li>or have constructive criticism,</li>
+          </ul><a href="mailto:mathieu@redapesolutions.com">feel free to drop me a line</a>.
+        </p>
+        <p>If you found technical issues or possible improvements, you may open an issue on <a href="https://github.com/matiboy/codenames_duet" target="_blank">Github</a></p>
+        <p>Meanwhile, allow me to encourage you to purchase <a href="https://czechgames.com/en/codenames-duet/" target="_blank">the original boardgame</a></p>
+        <p>--<br>Mat</p>
+      </v-container>
+    </v-card>
+  </v-dialog>
   <v-dialog v-model="rulesDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
     <v-card>
       <v-toolbar dark>
@@ -279,7 +327,7 @@
       </v-toolbar>
       <v-container fluid>
         <v-col>
-          <p>It might be easier to <a href="https://czechgames.com/files/rules/codenames-rules-en.pdf">download the official PDF version of the rules</a>, or watch <a href="http://cge.as/cnv">the official rules overview video</a></p>
+          <p>It might be easier to <a target="_blank" href="https://czechgames.com/files/rules/codenames-rules-en.pdf">download the official PDF version of the rules</a>, or watch <a href="http://cge.as/cnv" target="_blank">the official rules overview video</a></p>
           <p class="headline">Below is just another explanation.</p>
           <v-expansion-panels :dark="false">
             <v-expansion-panel>
@@ -356,8 +404,6 @@
     </v-card>
   </v-dialog>
   <v-overlay :value="ended" :color="overlayColor">
-    <span v-text="won"></span>
-    <span v-text="lost"></span>
     <h1 class="success--text" v-if="won">Win!</h1>
     <h1 class="error--text" v-if="lost">LOST 😓</h1>
     <v-btn large @click="startNew">Start new game</v-btn>
