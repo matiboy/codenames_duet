@@ -75,24 +75,17 @@
       flex: 0 0 20%;
       max-width: 20%;
     }
+    .agents .v-icon {
+      font-size: 35px !important;
+    }
   </style>
 {% endblock %}
 {% block vuetemplate %}
 <v-container fluid>
     <audio id="meeting-audio" style="display:none"></audio>
-    <!-- <v-row>
-      <video id="video-preview"></video>
-      <video id="video-other-player"></video>
-    </v-row> -->
     <v-row>
       <v-col cols="2">
-        <table id="key" border="0" class="mb-4">
-          {% for row in words %}
-          <tr>
-            {% for word in row %}<td {% if word in player.green %}class="good"{% elif word in player.black %}class="assassin"{%endif%}></td>{%endfor%}
-          </tr>
-          {% endfor %}
-        </table>
+        <key :words="game.words" :green="key.green" :black="key.black"></key>
         <div id="flow-load-devices" class="flow" v-show="videoStep === 'flow-load-devices'">
           <v-progress-circular indeterminate></v-progress-circular>
           <small>Reading your microphone and camera details</small>
@@ -112,25 +105,25 @@
           </div>
           <div id="tile-16">
             <video id="video-16"></video>
-            <div id="nameplate-16">{{otherPlayerName}}</div>
-            <v-btn id="video-pause-16" icon><v-icon>mdi-pause</v-icon></button>
-            <v-btn id="video-resume-16" icon><v-icon>mdi-play</v-icon></button>
+            <v-row>
+              <v-col class="nameplate">{{otherPlayerName}}</v-col>
+              <v-col>
+                <v-btn icon @click="toggleVideoSelf">
+                  <v-icon v-if="!otherMuted">mdi-microphone</v-icon>
+                  <v-icon v-if="otherMuted">mdi-microphone-off</v-icon>
+                </v-btn>
+              </v-col>
+            </v-row>
           </div>
         </div>
         <div id="flow-devices" class="flow" v-show="videoStep === 'flow-devices'">
           <div class="container">
             <form id="form-devices">
               <p class="text-center">Select devices</p>
-              <v-col>
+              <v-col align="center">
                 <v-row>
                   <v-select :value="selectedAudioInput" @input="selectAudioInput" id="audio-input" label="Microphone" :items="audioInputDevices"></v-select>
                 </v-row>
-                <!-- <v-col>
-                  <h4>Preview</h4>
-                  <v-row class="w-100 progress" style="margin-top:0.75rem">
-                    <div id="audio-preview" class="progress-bar bg-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
-                  </v-row>
-                </v-col> -->
                 <v-row>
                   <v-select :value="selectedVideoInput" @input="selectVideoInput" id="video-input" label="Camera" :items="videoInputDevices"></v-select>
                 </v-row>
@@ -171,8 +164,10 @@
           Anyone can start with the first hint.
         </v-row>
         <v-row>
-          <v-col cols="1" class="side-columns" align="center" justify="center">
+          <v-col cols="1" class="side-columns agents" align="center" justify="center">
             <p>Agents</p>
+            <v-icon v-for="i in foundAgents" color="success" :key="`check${i}`">mdi-check</v-icon>
+            <v-icon v-for="i in unfoundAgents" :key="`question${i}`">mdi-head-question</v-icon>
           </v-col>
           <v-col cols="10">
             <v-row v-for="row, i in rows" :key="i">
@@ -192,14 +187,145 @@
           <v-col cols="1" class="side-columns" align="center" justify="center">
             <p>Innocent Bystanders</p>
             <div v-for="img, i in bystanders" :key="img" :class="{dead: i >= game.bystanders}">
-              <v-icon class="bystanders-dead-icon" v-if="i >= game.bystanders-1">mdi-emoticon-dead-outline</v-icon>
+              <v-icon class="bystanders-dead-icon" v-if="i >= game.bystanders">mdi-emoticon-dead-outline</v-icon>
               <img :src="img" class="ml-1 mr-1">
             </div>
           </v-col>
         </v-row>
       </v-col>
     </v-row>
+    <v-footer>
+      <v-card
+        flat
+        tile
+        fixed
+        width="100%"
+        class="text-center"
+      >
+        <v-btn class="mr-4" outlined color="info" @click="rulesDialog = true">Rules</v-btn>
+        <v-btn outlined color="warning">Disclaimer</v-btn>
+      </v-card>
+    </v-footer>
   </v-container>
+  <v-dialog v-model="rulesDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
+    <v-card>
+      <v-toolbar dark>
+        <v-btn icon dark @click="rulesDialog = false">
+          <v-icon>mdi-close</v-icon>
+        </v-btn>
+        <v-toolbar-title>Rules</v-toolbar-title>
+        <v-spacer></v-spacer>
+      </v-toolbar>
+      <v-list three-line>
+        <v-subheader>General</v-subheader>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Goal</v-list-item-title>
+            <v-list-item-subtitle>This is a collaborative game. The goal is to uncover the code names of all (15) agents while avoiding the (5) assassins names
+              <br>This goal needs to be achieved before all innocent bystanders are dead
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>What names?</v-list-item-title>
+            <v-list-item-subtitle>In the top left, you will see your "Key" (a rectangle with green, black and white boxes). Mentally align the colors in the key to the words in the main area;
+              <ul>
+                <li>the "green" words are your agents' names - what you would want the other player to guess; you have 9 of those;</li>
+                <li>the "black" words are your assassins' names - what you would want the other player to guess; you have 3 of those;</li>
+                <li>the "white" words are innocent bystanders; they are not good and not bad.</li>
+              </ul>
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>What happens each turn?</v-list-item-title>
+            <v-list-item-subtitle>One of the two players will be "Giving hint", the other will be "Guessing". You will alternate in those roles. Below you will find explainations as to what happens in each role.
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Who starts in which role?</v-list-item-title>
+            <v-list-item-subtitle>Either one of the two players can decide to provide a hint first; from then onwards, players alternate in "Guessing" and "Giving hint"
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-divider></v-divider>
+        <v-subheader>"Giving hint" role</v-subheader>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Goal of this role</v-list-item-title>
+            <v-list-item-subtitle>When assuming the "Hinting" role, you want the other player to Guess your agents names (green cards).
+              <br>The rules of what constitutes a valid hint is detailed below.
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Uttering the hint</v-list-item-title>
+            <v-list-item-subtitle>
+              You will utter your hint as follows: One word ONLY, followed by a number; e.g. "<span class="red--text">Bird</span>, <span class="blue--text">Two</span>"
+              In this example, you are telling the other player that <span class="blue--text">Two</span> of the names in your green boxes are somehow related to <span class="red--text">"Bird"</span>
+              <br>
+              You may not give any other signals of any form; no other word, no visual hints.
+              <br>
+              Once you have uttered your hint, let the other player start "Guessing"
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Valid hint</v-list-item-title>
+            <v-list-item-subtitle>
+              <ul>
+                <li>You may not use multiple words (unless they make sense e.g. New York is ok)</li>
+                <li>You may not use a word or part of a word which is on the main board</li>
+                <li>You may not use translations of a word from the board in another language (unless it makes sense e.g. Crepe for Pancake is ok)</li>
+              </ul>
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-divider></v-divider>
+        <v-subheader>"Guessing" role</v-subheader>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Goal of this role</v-list-item-title>
+            <v-list-item-subtitle>In this role, you are attempting to guess the names of the other player's agents.<br>
+              Consider the hint given by the other player and try to associate their hint with the words that are still open on the board.
+              <br>
+              At this stage, you should basically ignore your own key; it is not relevant at that point in time.
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>Choose agent names</v-list-item-title>
+            <v-list-item-subtitle>Select the names you believe the other player was hinting to.<br>
+              Do this one at a time (usually starting from the most obvious one).
+              <br> One of three things may happen:
+              <ul>
+                <li>You may have picked the assassin. The game ends, and you both lose.</li>
+                <li>You may have picked an innocent bystander. One bystander dies; the roles are swapped - it is now your turn to "Give hint", and the other player's turn to "Guess".
+                  <br>Additionally, if you ran out of bystanders, the game ends and you both lose.</li>
+                <li>You found one of the other player's agents. The agent is marked as found and you may continue to guess, if you wish to.</li>
+              </ul>
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item>
+          <v-list-item-content>
+            <v-list-item-title>How long do I continue guessing?</v-list-item-title>
+            <v-list-item-subtitle>You may decide to stop guessing at any time if you do not feel comfortable that your next guess would be correct.
+              <br>In this case, click the "Stop guessing" button.
+              <br>Note however that an innocent bystander will be killed due to your lack of pro-activity
+            </v-list-item-subtitle>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-card>
+  </v-dialog>
   <v-overlay :value="ended" :color="overlayColor">
     <span v-text="won"></span>
     <span v-text="lost"></span>
@@ -210,18 +336,9 @@
 </v-content>
 {% endblock %}
 {% block vueapp %}
+<script src="{{dynamic_script}}"></script>
 <script src="/static/game_split.js"></script>
-<script src="/dynamic/{{attendee.ExternalUserId}}.js"></script>
 <script>
-  // Avoid mistakenly using game vs this.game
-  window.GAME = {{game|tojson|safe}}
-  window.MEETING = {{meeting|tojson|safe}}
-  window.ATTENDEE = {{attendee|tojson|safe}}
-  window.playerNumber = {{player_number}}
-  window.PUSHER_KEY = '{{pusher_key}}'
-  window.PUSHER_CLUSTER = '{{pusher_cluster}}'
-  window.channel = '{{channel}}'
-  
   window.$vm = new Vue({
     ...CovidNames.game_split.default,
     data: {

@@ -1,0 +1,10 @@
+// Avoid mistakenly using game vs this.game
+window.GAME = {{game|tojson|safe}}
+window.MEETING = {{meeting|tojson|safe}}
+window.KEY = {{key|tojson|safe}}
+window.ATTENDEE = {{attendee|safe}}
+window.playerNumber = {{player_number}}
+window.PUSHER_KEY = '{{pusher_key}}'
+window.PUSHER_CLUSTER = '{{pusher_cluster}}'
+window.channel = '{{channel}}'
+window.URLS = {{urls|tojson|safe}}

@@ -1,19 +1,24 @@
 import Vue from 'vue'
-import {chunk, throttle} from 'lodash'
+import {chunk, throttle, range} from 'lodash'
 import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel } from 'amazon-chime-sdk-js';
 import { logger, QualityMappings } from './chime';
 import { TestSound } from './chime/test-sound'
 // import Pusher from 'pusher-js' // Broken import :/ using window for now
 import 'pusher-js'
 import { Game, Attendee } from './game.interface';
+import Key from './key.vue'
 
 let meetingSession: DefaultMeetingSession
 let audioVideo: AudioVideoFacade
 let selectedVideoDevice: string
 let selectedAudioOutput: string
-const anotherLogger = new ConsoleLogger('JOHN', LogLevel.INFO)
+const anotherLogger = new ConsoleLogger('CoVIDenames', LogLevel.INFO)
 interface UpdateMessage {
   updater: number
+}
+interface HintMessage {
+  word: string
+  count: number
 }
 interface ApiResponse {
   result: number, 
@@ -42,6 +47,8 @@ export const enum Flows {
   IN_MEETING = 'flow-in-meeting'
 }
 
+const fromWindowBuilder = <T>(key: string) => () => ((window as any)[key]) as T
+
 const getVideoPreviewElement = (): HTMLVideoElement => {
   return document.getElementById('video-preview') as HTMLVideoElement
 }
@@ -49,9 +56,8 @@ const getAudioOutputElement = (): HTMLAudioElement => {
   return document.getElementById('meeting-audio') as HTMLAudioElement
 }
 
-const getAttendee = (): Attendee => {
-  return (window as any).ATTENDEE
-}
+const getAttendee = fromWindowBuilder<Attendee>('ATTENDEE')
+const getUrls = fromWindowBuilder<{[key: string]: string}>('URLS')
 
 const getGame = (): Game => {
   return (window as any).GAME
@@ -84,7 +90,6 @@ class VueAudioVideoObserver implements AudioVideoObserver {
     anotherLogger.info('tileElement' + tileElement)
     const videoElement = document.getElementById(`video-${index}`) as HTMLVideoElement;
     anotherLogger.info('videoElement' + videoElement)
-    console.log(`binding video element`, tileState, videoElement)
     audioVideo.bindVideoElement(tileState.tileId, videoElement);
     // throttledLogMe(arguments)
   }
@@ -94,11 +99,17 @@ const theGreatObserver = new VueAudioVideoObserver()
 let pusher: any
 
 export default {
+    components: {
+      key: Key
+    },
     data: {
       game: (window as any).GAME,
+      key: (window as any).KEY,
       snackbar: false,
       snackbarText: '',
       snackbarColor: 'white',
+      rulesDialog: false,
+      hintDialog: false,
       loading: false,
       firstPlayer: null,
       selectedAudioInput: null,
@@ -109,7 +120,10 @@ export default {
       audioOutputDevices: [],
       videoInputDevices: [],
       videoStep: Flows.LOAD_DEVICES,
-      localPaused: false
+      localPaused: false,
+      otherMuted: false,
+      agents: range(0, 15),
+      hint: {}
     },
     async mounted() {
       // Pusher stuff
@@ -122,6 +136,15 @@ export default {
         if(data.updater !== getPlayerNumber()) {
           this.refreshGame()
         }
+      });
+      channel.bind('key_update', (data: UpdateMessage) => {
+        anotherLogger.info('Key has being updated')
+        if(data.updater !== getPlayerNumber()) {
+          this.refreshKey()
+        }
+      });
+      channel.bind('new_hint', (data: HintMessage) => {
+        this.hint = data
       });
       // Chime stuff
       const deviceController = new DefaultDeviceController(logger)
@@ -169,6 +192,12 @@ export default {
       lost() {
         return Boolean(this.game.lost)
       },
+      foundAgents() {
+        return range(0, this.game.found.length)
+      },
+      unfoundAgents() {
+        return range(0, this.game.agents - this.game.found.length)
+      },
       won() {
         return Boolean(this.game.won)
       },
@@ -208,7 +237,6 @@ export default {
         return this.game.next_up === null
       },
       next_up() {
-        console.log(this.game.next_up)
         return this.game.next_up
       },
       player() {
@@ -239,18 +267,26 @@ export default {
         this.refreshGame()
       },
       refreshGame() {
-        fetch(window.location.toString(), {
+        fetch(getUrls().game, {
           headers: {
             'Content-Type': 'application/json'
           }
         }).then(x => x.json())
         .then(x => this.game = x.game)
       },
+      refreshKey() {
+        fetch(getUrls().key, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        }).then(x => x.json())
+        .then(x => this.key = x)
+      },
       toggleVideoSelf() {
         if(this.localPaused) {
-          audioVideo.unpauseVideoTile(localTileId)
+          audioVideo.startLocalVideoTile()
         } else {
-          audioVideo.pauseVideoTile(localTileId)
+          audioVideo.stopLocalVideoTile()
         }
         this.localPaused = !this.localPaused
       },

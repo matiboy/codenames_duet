@@ -16,20 +16,26 @@ module.exports = {
     rules: [
       {
         test: /\.ts$/,
-        use: 'ts-loader',
+        loader: 'ts-loader',
         exclude: /node_modules/,
+        options: {
+          appendTsSuffixTo: [/\.vue$/],
+        }
       },
       {
         test: /\.vue$/,
-        use: 'vue-loader',
+        loader: 'vue-loader',
         exclude: /node_modules/,
       },
     ],
+  },
+  performance: {
+    hints: false
   },
   plugins: [
     new VueLoaderPlugin()
   ],
   resolve: {
-    extensions: [ '.ts', '.js', 'vue' ],
+    extensions: [ '.ts', '.js', '.vue' ],
   },
 };

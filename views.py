@@ -52,26 +52,24 @@ def setup_game():
   decks.sort()
   return render_template('setup.html', decks=decks)
 
-@app.route('/game/<game_id>/<player_token>', methods=['GET'])
+@app.route('/game/<game_id>', methods=['GET'], endpoint='game_details')
 @game_or_404(redirect_to='setup_game')
-def get_game_details(db_game, game, db_attendee, **kwargs):
+def get_game_details(db_game, game, game_id, **kwargs):
   game = safe_game(game, game_id)
-  if request.is_json:
-    return {
-      'game': game
-    }
-  return render_template('game.html', game=game)
+  return {
+    'result': 1,
+    'game': game
+  }
 
 @app.route('/game/<game_id>/new', methods=['POST'])
-def start_new_game(game_id=''):
-  game = get_game(game_id, True)
-  if game is None:
-    return {
-      'result': 0,
-      'game': None
-    }
-  game = make_game(game['player1']['name'], game['player2']['name'], game['initialBystanders'], decks=game['decks'])
-  update_game_details(game, game_id)
+@game_or_404()
+def start_new_game(game_id, db_game, game, **kwargs):
+  new_game = make_game(game['player1']['name'], game['player2']['name'], game['initialBystanders'], decks=game['decks'])
+  update_game_details(new_game, game_id)
+  for channel in build_channels(db_game):
+    app.logger.info(f'Triggering update on socket channels {channel}')
+    pusher_client.trigger(channel, 'game_update', {})
+    pusher_client.trigger(channel, 'key_update', {})
   game = safe_game(game, game_id)
   return {
     'result': 1,
@@ -83,9 +81,9 @@ def start_new_game(game_id=''):
 @app.route('/game/<game_id>/player/<player_token>', methods=['GET'], endpoint='start_game_split')
 @game_or_404(redirect_to='setup_game')
 @attendee_or_404
-def start_game_split(game_id='', player_token='', db_game=None, game=None, db_attendee=None):
+def start_game_split(game_id, player_token, db_game, game, db_attendee, **kwargs):
   if request.is_json:
-    return get_game_details(game_id=game_id, player_token=player_token)
+    return get_game_details(db_game=db_game, game=game, game_id=game_id, **kwargs)
 
   # Get the corresponding attendee
   db_attendee = get_attendee(db_game, player_token)
@@ -121,19 +119,40 @@ def start_game_split(game_id='', player_token='', db_game=None, game=None, db_at
   words=[
     [words_copy.pop(0) for _ in range(5)] for __ in range(5)
   ]
-  return render_template('game_split.html', game=game, player=player, words=words, player_number=player_id,
-    attendee=attendee,
-    meeting=db_game.meeting,
-    pusher_key=os.environ['PUSHER_APP_KEY'],
-    pusher_cluster='ap1',
+  return render_template('game_split.html',
     thisPlayerName=player['name'],
-    channel=build_channels(db_game)[player_id - 1],
+    dynamic_script=url_for('dynamic_split_js', game_id=db_game.token, player_token=db_attendee.token),
     otherPlayerName= game[f'player{3-player_id}']['name']
   )
 
-@app.route('/dynamic/<player>.js')
-def player_js(player):
-  response = make_response('console.log("YAY")')
+@app.route('/dynamic/<game_id>/<player_token>.js', endpoint='dynamic_split_js')
+@game_or_404()
+@attendee_or_404
+def player_js(player_token, db_attendee, db_game, game, game_id):
+  player_index = db_attendee.index
+  # Make a copy so it's not affected by safe_game
+  player_dict = game[f'player{player_index}']
+  key = {
+    'black': player_dict['black'],
+    'green': player_dict['green']
+  }
+  game = safe_game(game, game_id)
+  response = make_response(
+    render_template('javascript/game_split_data.txt', 
+      game=game,
+      attendee=db_attendee.attendee_details,
+      meeting=db_game.meeting,
+      pusher_key=os.environ['PUSHER_APP_KEY'],
+      pusher_cluster='ap1',
+      key=key,
+      player_number=player_index,
+      channel=build_channels(db_game)[player_index],
+      urls={
+        'key': url_for('key', game_id=game_id, player_token=player_token),
+        'game': url_for('game_details', game_id=game_id)
+      }
+    )
+  )
   response.mimetype = 'text/javascript'
   return response
 
@@ -158,39 +177,29 @@ def build_game():
     }
 
 
-@app.route('/key/<game_id>', endpoint='key')
-def key(game_id):
-    game = get_game(game_id, True)
-    player = None
-    key = None
-    if game['keys'] == 0:
-      player = 'player1'
-    elif game['keys'] == 1:
-      player = 'player2'
-    if player is not None:
-      key = game[player]
-    if key is not None:
-      player = key['name']
-    game['keys'] += 1
-    update_game_details(game, game_id)
-    return render_template('key.html', player=player, key=key, words=[
-      [game['words'].pop(0) for _ in range(5)] for __ in range(5)
-    ])
+@app.route('/key/<game_id>/<player_token>', endpoint='key')
+@game_or_404()
+@attendee_or_404
+def key(game_id, db_game, game, db_attendee, **kwargs):
+  player_index = db_attendee.index
+  player_dict = game[f'player{player_index}']
+  # Should we ban after one load?
+  update_game_details(game, game_id)
+  return {
+    'green': player_dict['green'],
+    'black': player_dict['black']
+  }
 
 @app.route('/stop/<game_id>/<player_token>', methods=['POST'], endpoint='stop_route')
-@game_or_404
-def stop_route(game_id, player_token):
+@game_or_404()
+@attendee_or_404
+def stop_route(game_id, player_token, game, db_game, db_attendee,  **kwargs):
   content = request.get_json()
-  game = get_game(game_id, as_dict=True)
-  attendee = get_attendee(get_game(game_id), player_token)
-  if attendee is None:
-    return {
-      'result': 0
-    }
-  index = attendee.index
+  index = db_attendee.index
   result, game = stop_guessing(game, index)
   update_game_details(game, game_id)
-  channel = get_other_player_channel(game, player_token)
+  channel = get_other_player_channel(db_game, player_token)
+  app.logger.info(f'Triggering update on socket channel {channel}')
   pusher_client.trigger(channel, 'game_update', {})
   return {
     'result': result,
@@ -220,9 +229,11 @@ def get_other_player_channel(game: Game, player_token):
   else:
     return make_channel(game.token, attendee1.token)
 
-def make_channel(game_id, token):
+def make_channel(game_id, token=None):
+  if token is None:
+    return game_id
   return f'{game_id}@{token}'
 
 def build_channels(game: Game):
   (attendee1, attendee2) = game.attendees
-  return make_channel(game.token, attendee1.token), make_channel(game.token, attendee2.token)
+  return make_channel(game.token), make_channel(game.token, attendee1.token), make_channel(game.token, attendee2.token)
