@@ -178,7 +178,12 @@
                 <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)
               </v-col>
             </v-row>
-            <v-btn outlined class="ml-5" :elevation="5" @click.stop="hintDialog = true" v-show="!iAmGuessing">Give hint</v-btn>
+            <v-row v-show="!iAmGuessing">
+              <v-btn outlined v-show="!game.hint" class="ml-5" :elevation="5" @click.stop="hintDialog = true">Give hint</v-btn>
+              <v-col v-show="game.hint.word">
+                <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)
+              </v-col>
+            </v-row>
           </v-col>
         </v-row>
         <v-row align="center" justify="center" v-if="noPlayer">
