@@ -275,9 +275,9 @@ export default {
       },
       async confirmHint() {
         this.hintDialog = false
+        this.giveHint = {text: '', count: 2}
         const {result, game} = await fetch(`${getUrls().hint}?word=${this.giveHint.text}&count=${this.giveHint.count}`)
           .then(x => x.json())
-        console.log(result, game)
         this.game = game
       },
       refreshGame() {
@@ -346,8 +346,14 @@ export default {
         audioVideo.start()
         audioVideo.startLocalVideoTile()
         audioVideo.realtimeSubscribeToAttendeeIdPresence((attendeeId, present, externalUserId) => {
-          if(attendeeId === getAttendee().AttendeeId) {
-            // TODO register for sound etc
+          if(!present) {
+            audioVideo.realtimeUnsubscribeFromVolumeIndicator(attendeeId)
+          } else {
+            if(attendeeId === getAttendee().AttendeeId) {
+              // TODO register for sound etc
+            } else {
+              audioVideo.realtimeSubscribeToVolumeIndicator(attendeeId, this.onVolumeIndicator.bind(this))
+            }
           }
         })
       },
@@ -414,6 +420,13 @@ export default {
       player2Attempted(word) {
         if(this.game.found.includes(word)) { return false }
         return this.game.player2.attempted_words.includes(word)
+      },
+      onVolumeIndicator(attendeeId: string, volume: number, muted: boolean, signalStrength: number, externalUserId?: string) {
+        anotherLogger.info(`Attendee ${attendeeId} s volume is set to ${volume} and muted is ${muted}`)
+        anotherLogger.debug(() => `This attendee is ${getAttendee().AttendeeId}`)
+        if(attendeeId !== getAttendee().AttendeeId) {
+          this.otherMuted = muted
+        }
       }
     }
   }

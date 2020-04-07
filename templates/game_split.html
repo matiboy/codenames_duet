@@ -81,6 +81,13 @@
     .hint {
       font-size: 20px;
     }
+    .hint .v-skeleton-loader__text.v-skeleton-loader__bone {
+      margin-bottom: 0;
+      font-size: 20px;
+      line-height: 30px;
+      height: 25px;
+      border-radius: 30px;
+    }
   </style>
 {% endblock %}
 {% block vuetemplate %}
@@ -164,7 +171,14 @@
             <v-btn color="warning" outlined @click="stopGuessing" v-show="iAmGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
           </v-col>
           <v-col cols="2">
-            <div class="hint">Hint: <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)</div>
+            <v-row align="center" class="hint" v-show="iAmGuessing">
+              <v-col cols="4">Hint:</v-col>
+              <v-col v-show="!game.hint.word"><v-skeleton-loader type="text"></v-skeleton-loader></v-col>
+              <v-col v-show="game.hint.word">
+                <span v-text="game.hint.word"></span> (<span v-text="game.hint.count"></span>)
+              </v-col>
+            </v-row>
+            <v-btn outlined class="ml-5" :elevation="5" @click.stop="hintDialog = true" v-show="!iAmGuessing">Give hint</v-btn>
           </v-col>
         </v-row>
         <v-row align="center" justify="center" v-if="noPlayer">
@@ -258,114 +272,80 @@
         <v-toolbar-title>Rules</v-toolbar-title>
         <v-spacer></v-spacer>
       </v-toolbar>
-      <v-list three-line>
-        <v-subheader>General</v-subheader>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Goal</v-list-item-title>
-            <v-list-item-subtitle>This is a collaborative game. The goal is to uncover the code names of all (15) agents while avoiding the (5) assassins names
-              <br>This goal needs to be achieved before all innocent bystanders are dead
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>What names?</v-list-item-title>
-            <v-list-item-subtitle>In the top left, you will see your "Key" (a rectangle with green, black and white boxes). Mentally align the colors in the key to the words in the main area;
-              <v-list single-line>
-                <v-list-item>the "green" words are your agents' names - what you would want the other player to guess; you have 9 of those;</v-list-item>
-                <v-list-item>the "black" words are your assassins' names - what you would want the other player to guess; you have 3 of those;</v-list-item>
-                <v-list-item>the "white" words are innocent bystanders; they are not good and not bad.</v-list-item>
-              </v-list>
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>What happens each turn?</v-list-item-title>
-            <v-list-item-subtitle>One of the two players will be "Giving hint", the other will be "Guessing". You will alternate in those roles. Below you will find explainations as to what happens in each role.
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Who starts in which role?</v-list-item-title>
-            <v-list-item-subtitle>Either one of the two players can decide to provide a hint first; from then onwards, players alternate in "Guessing" and "Giving hint"
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-divider></v-divider>
-        <v-subheader>"Giving hint" role</v-subheader>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Goal of this role</v-list-item-title>
-            <v-list-item-subtitle>When assuming the "Hinting" role, you want the other player to Guess your agents names (green cards).
-              <br>The rules of what constitutes a valid hint is detailed below.
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Uttering the hint</v-list-item-title>
-            <v-list-item-subtitle>
-              You will utter your hint as follows: One word ONLY, followed by a number; e.g. "<span class="red--text">Bird</span>, <span class="blue--text">Two</span>"
-              In this example, you are telling the other player that <span class="blue--text">Two</span> of the names in your green boxes are somehow related to <span class="red--text">"Bird"</span>
-              <br>
-              You may not give any other signals of any form; no other word, no visual hints.
-              <br>
-              Once you have uttered your hint, let the other player start "Guessing"
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Valid hint</v-list-item-title>
-            <v-list-item-subtitle>
-              <ul>
-                <li>You may not use multiple words (unless they make sense e.g. New York is ok)</li>
-                <li>You may not use a word or part of a word which is on the main board</li>
-                <li>You may not use translations of a word from the board in another language (unless it makes sense e.g. Crepe for Pancake is ok)</li>
-              </ul>
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-divider></v-divider>
-        <v-subheader>"Guessing" role</v-subheader>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Goal of this role</v-list-item-title>
-            <v-list-item-subtitle>In this role, you are attempting to guess the names of the other player's agents.<br>
-              Consider the hint given by the other player and try to associate their hint with the words that are still open on the board.
-              <br>
-              At this stage, you should basically ignore your own key; it is not relevant at that point in time.
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>Choose agent names</v-list-item-title>
-            <v-list-item-subtitle>Select the names you believe the other player was hinting to.<br>
-              Do this one at a time (usually starting from the most obvious one).
-              <br> One of three things may happen:
-              <ul>
-                <li>You may have picked the assassin. The game ends, and you both lose.</li>
-                <li>You may have picked an innocent bystander. One bystander dies; the roles are swapped - it is now your turn to "Give hint", and the other player's turn to "Guess".
-                  <br>Additionally, if you ran out of bystanders, the game ends and you both lose.</li>
-                <li>You found one of the other player's agents. The agent is marked as found and you may continue to guess, if you wish to.</li>
-              </ul>
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-        <v-list-item>
-          <v-list-item-content>
-            <v-list-item-title>How long do I continue guessing?</v-list-item-title>
-            <v-list-item-subtitle>You may decide to stop guessing at any time if you do not feel comfortable that your next guess would be correct.
-              <br>In this case, click the "Stop guessing" button.
-              <br>Note however that an innocent bystander will be killed due to your lack of pro-activity
-            </v-list-item-subtitle>
-          </v-list-item-content>
-        </v-list-item>
-      </v-list>
+      <v-container fluid>
+        <v-col>
+          <v-expansion-panels :dark="false">
+            <v-expansion-panel>
+              <v-expansion-panel-header>General</v-expansion-panel-header>
+              <v-expansion-panel-content>
+                <p class="title">Goal</p>
+                <p>This is a collaborative game. The goal is to uncover the code names of all (15) agents while avoiding the (5) assassins names.</p>
+                <p>This goal needs to be achieved before all innocent bystanders are dead. Consider these are "turns"</p>
+                <p class="title">What names?</p>
+                <p>In the top left, you will see your "Key" (a rectangle with green, black and white boxes). Mentally align the colors in the key to the words in the main area;</p>
+                <ul>
+                  <li>the <span class="green--text">green words</span> are your agents' names - what you would want the other player to GUESS; you have 9 of those;</li>
+                  <li>the black words are assassins' names - which you would want the other player to AVOID; you have 3 of those;</li>
+                  <li>the <span class="white--text">white words</span> are innocent bystanders; they are not GOOD but NOT TOO BAD.</li>
+                </ul>
+                <p class="title">What happens each turn?</p>
+                <p>One of the two players will be "Giving hint", the other will be "Guessing". You will alternate in those roles.</p>
+                <p>Below you will find explainations as to what happens in each role.</p>
+                <p class="title">Who goes first? Who starts in which role?</p>
+                <p>Either one of the two players can decide to provide a hint first; from then onwards, players alternate in "Guessing" and "Giving hint"</p>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+            <v-expansion-panel>
+              <v-expansion-panel-header>"Giving hint" role</v-expansion-panel-header>
+              <v-expansion-panel-content>
+                <p class="title">Goal of this role</p>
+                <p>When assuming the "Hinting" role, you want the other player to Guess your agents' names (green cards).</p>
+                <p>The rules of what constitutes a valid hint is detailed below.</p>
+                <p class="title">Uttering the hint</p>
+                <p>You will need to utter your hint as follows: One word ONLY, followed by a number; e.g. "<span class="red--text">Bird</span>, <span class="blue--text">Two</span>"</p>
+                <p>In this example, you are telling the other player that <span class="blue--text">Two</span> of the names in your green boxes are somehow related to <span class="red--text">"Bird"</span></p>
+                <p>You may not give any other signals of any form; no other word, no visual hints.</p>
+                <p>Once you have uttered your hint, let the other player start "Guessing"</p>
+                <p class="title">Valid hint</p>
+                <p>
+                  <ul>
+                    <li>You may not use multiple words (unless they make sense e.g. New York is ok)</li>
+                    <li>You may not use a word or part of a word which is on the main board</li>
+                    <li>You may not use translations of a word from the board in another language (unless it makes sense e.g. Crepe for Pancake is ok)</li>
+                  </ul>
+                </p>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+            <v-expansion-panel>
+              <v-expansion-panel-header>"Guessing" role</v-expansion-panel-header>
+              <v-expansion-panel-content><p class="title">Goal of this role</p>
+                <p>In this role, you are attempting to guess the names of the other player's agents.<br>
+                  Consider the hint given by the other player and try to associate their hint with the words that are still open on the board.
+                  <br>
+                  At this stage, you should basically ignore your own key; it is not relevant at that point in time.
+                </p>
+                <p class="title">Choose agent names</p>
+                <p>Select the names you believe the other player was hinting to.</p>
+                <p>Do this one at a time, simply by clicking on the corresponding card in the main board (usually starting from the most obvious one).
+                </p>
+                <p>One of three things may happen:
+                  <ul>
+                    <li>You may have picked an assassin. The game ends, and you both lose.</li>
+                    <li>You may have picked an innocent bystander. One bystander dies; the roles are swapped - it is now your turn to "Give hint", and the other player's turn to "Guess".
+                      <br>Additionally, if you ran out of bystanders, the game ends and you both lose.</li>
+                    <li>You found one of the other player's agents. The agent is marked as found and you may continue to guess, if you wish to.</li>
+                  </ul>
+                </p>
+                <p class="title">How long do I continue guessing?</p>
+                <p>You may decide to stop guessing at any time if you do not feel comfortable that your next guess would be correct.
+                  <br>In this case, click the "Stop guessing" button.
+                  <br>Note however that an innocent bystander will be killed due to your lack of pro-activity
+                </p>
+              </v-expansion-panel-content>
+            </v-expansion-panel>
+          </v-expansion-panels>
+        </v-col>
+      </v-container>
     </v-card>
   </v-dialog>
   <v-overlay :value="ended" :color="overlayColor">
