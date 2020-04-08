@@ -1,5 +1,5 @@
-from game import guess, make_game
-from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN
+from game import guess, make_game, skip_player
+from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP
 from assertpy import assert_that
 
 def get_game():
@@ -106,3 +106,43 @@ def test_should_have_correct_commonality():
   assert_that(player2['black']).is_length(3)
   assert_that(game['lost']).is_false()
   assert_that(game['next_up']).is_none()
+
+def test_should_allow_skipping_when_no_more_words():
+  game = get_game()
+  # All player 1 found
+  game['found'] = ['d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'g']
+  game['next_up'] = 1
+  
+  outcome, game = skip_player(game, 1)
+
+  assert_that(outcome).is_equal_to(SKIPPED)
+  assert_that(game['next_up']).is_equal_to(2)
+  # No bystander killed
+  assert_that(game['bystanders']).is_equal_to(9)
+
+def test_should_not_allow_skipping_wrong_player():
+  game = get_game()
+  # All player 1 found - should not matter here
+  game['found'] = ['d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'g']
+  game['next_up'] = 1
+  
+  # Player 2 trying to skip, but not their turn
+  outcome, game = skip_player(game, 2)
+
+  assert_that(outcome).is_equal_to(CANNOT_SKIP)
+  # unchanged
+  assert_that(game['next_up']).is_equal_to(1)
+
+
+def test_should_not_allow_skipping_some_words_left():
+  game = get_game()
+  # Not all player 1 found
+  game['found'] = ['d', 'e', 'f', 'g']
+  game['next_up'] = 1
+  
+  outcome, game = skip_player(game, 1)
+
+  assert_that(outcome).is_equal_to(CANNOT_SKIP)
+  # unchanged
+  assert_that(game['next_up']).is_equal_to(1)
+  assert_that(game['bystanders']).is_equal_to(9)

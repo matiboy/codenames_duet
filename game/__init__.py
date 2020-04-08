@@ -3,27 +3,7 @@ import string
 from typing import List
 from words import DECKS
 from utils import id_generator
-from game.outcomes import NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH
-
-class WrongPlayerException(Exception):
-  """ Raised when it is not this player s turn """
-  pass
-
-class Player(object):
-  id = ''
-  name = ''
-  black_words = None
-  green_words = None
-  def __init__(self, name, black_words, green_words):
-    self.id = id_generator()
-    self.name = name
-    self.black_words = black_words
-    self.green_words = green_words
-
-  def __eq__(self, other):
-    if type(other) is Player:
-      return other.id == self.id
-    return other == self.id or other == self.name
+from game.outcomes import CANNOT_SKIP, NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH, SKIPPED
 
 def make_game(player1_name: str, player2_name: str, bystanders: int, decks, agents=15):
   randomized_words = set()
@@ -112,6 +92,16 @@ def give_hint(game, db_attendee, hint_text: str, hint_count: int):
   if game['next_up'] is None:
     game['next_up'] = get_other_player(db_attendee.index)
   return game
+
+def skip_player(game, player_index: int) -> (int, dict):
+  if game['next_up'] != player_index:
+    return (CANNOT_SKIP, game)
+  player_dict = get_player_dict(game, player_index)
+  unfound = [word for word in player_dict['green'] if word not in game['found']]
+  if len(unfound) != 0:
+    return (CANNOT_SKIP, game)
+  game['next_up'] = get_other_player(player_index)
+  return (SKIPPED, game)
 
 def stop_guessing(game, player: int) -> (int, dict):
   game['bystanders'] -= 1

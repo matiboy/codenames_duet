@@ -10,3 +10,4 @@ pusher==3.0.0
 pytest==5.4.1
 pytest-flask==1.0.0
 assertpy==1.0
+dataclasses-json==0.4.2
