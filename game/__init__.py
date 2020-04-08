@@ -1,13 +1,17 @@
 import random
 import string
 from typing import List
-from words import DECKS
+from words import DECKS, Decks
 from utils import id_generator
 from game.outcomes import CANNOT_SKIP, NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH, SKIPPED
+from game.outcomes import Outcomes
 
-def make_game(player1_name: str, player2_name: str, bystanders: int, decks, agents=15):
+def make_game(player1_name: str, player2_name: str, bystanders: int, decks: List[str], agents=15):
+  # Read deck keys into enum
+  enum_decks = [Decks(deck) for deck in decks]
+
   randomized_words = set()
-  randomized_words.update(*[DECKS[deck] for deck in decks])
+  randomized_words.update(*[DECKS[deck] for deck in enum_decks])
   
   randomized_words = list(randomized_words).copy()
   random.shuffle(randomized_words)
@@ -72,6 +76,7 @@ def make_game(player1_name: str, player2_name: str, bystanders: int, decks, agen
     'lost': False,
     'won': False,
     'keys': 0,
+    'history': {'entries': []}
   }
 
 
@@ -134,7 +139,10 @@ def guess(game, player: int, word: str) -> (int, dict):
     game['lost'] = True
     return (BLACK, game)
   if word in other_player_object['green']:
-    game['next_up'] = player # player keeps playing
+    # Sudden death we don't change player
+    if game['sudden_death'] is False:
+      game['next_up'] = player # player keeps playing
+
     game['found'].append(word)
     if game['found'].__len__() == game['agents']:
       game['won'] = True

@@ -1,8 +1,10 @@
-from game import guess, make_game, skip_player
+from game import get_other_player, guess, make_game, skip_player
 from game.dataclasses import Game
 from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP, NOT_YOUR_TURN
 from assertpy import assert_that
 from pytest import mark
+import random
+from words import Decks
 
 def get_game():
   return {
@@ -33,6 +35,7 @@ def get_game():
   'lost': False,
   'won': False,
   'keys': 0,
+  'history': []
 }
 
 def get_game_dc() -> Game:
@@ -101,9 +104,16 @@ def test_should_not_set_next_up_on_green():
   game = get_game()
   game['sudden_death'] = True
   
-  outcome, game = guess(game, 2, 'o')
+  outcome, game = guess(game, 2, random.choice(game['player1']['green'])) # player 2 finding green from player 1
   assert_that(outcome).is_equal_to(GREEN)
   assert_that(game).has_next_up(None)
+
+@mark.parametrize("this_player, that_player",
+  [(1, 2), (2, 1)]
+)
+def test_get_other_player(this_player, that_player):
+  other_player = get_other_player(this_player)
+  assert_that(other_player).is_equal_to(that_player)
 
 def test_should_handle_yellow():
   """Yellow kills a bystander and alternates roles"""
@@ -134,6 +144,12 @@ def test_should_not_lose_on_own_black():
   assert_that(outcome).is_equal_to(YELLOW)
   assert_that(game['lost']).is_false()
   assert_that(game['next_up']).is_equal_to(1)
+
+def test_read_decks_from_string():
+  """Decks will be passed as string, transformed to enum"""
+  game = make_game('Bob', 'Diane', 12, [Decks.Codenames.value, Decks.Duet_2.value])
+  
+  assert_that(game['decks']).is_equal_to(['Codenames', 'Duet #2'])
 
 def test_should_have_correct_commonality():
   """Per the rules, one common black, one black is green, one black is yellow and three common greens"""

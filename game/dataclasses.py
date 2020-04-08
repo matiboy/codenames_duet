@@ -1,36 +1,39 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from dataclasses import dataclass
-from dataclasses_json import dataclass_json
+from dataclasses_json import dataclass_json, LetterCase
+from words import Decks
+from history import History
 
 @dataclass_json
 @dataclass
 class Hint:
-  word: str
   count: int
+  word: str
 
-@dataclass_json
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Player:
+  attempted_words: List[str]
   black: List[str]
   green: List[str]
-  name: str
-  attempted_words: List[str]
-  loaded: bool
   hints: List[Hint]
+  loaded: bool
+  name: str
 
-@dataclass_json
+@dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Game:
+  agents: int
+  bystanders: int
+  decks: List[Decks]
+  found: List[str]
+  history: History
+  initialBystanders: int
+  keys: int
+  lost: bool
+  next_up: Union[int, None]
   player1: Player
   player2: Player
-  words: List[str]
-  found: List[str]
   sudden_death: bool
-  decks: List[str]
-  next_up: Optional[int]
-  bystanders: int
-  initialBystanders: int
-  lost: bool
   won: bool
-  agents: int
-  keys: int
+  words: List[str]
