@@ -3,6 +3,42 @@
 {{super()}}
 
   <style>
+    @media only screen and (min-device-width : 768px) and (max-device-width : 1024px) {
+      .word-wrapper.theme--dark.v-card > .v-card__text {
+        font-size: 1.0em;
+        padding-top: 15px;
+        padding-bottom: 15px;
+        letter-spacing: -1px;
+        overflow-wrap: normal;
+        padding-left: 10px;
+        padding-right: 10px;
+        border-width: 1px;
+      }
+      .side-columns i {
+        font-size: 40px;
+      }
+      .side-columns img {
+        width: 40px;
+      }
+    }
+    @media only screen and (min-device-width : 1025px) and (max-device-width : 1366px) {
+      .word-wrapper.theme--dark.v-card > .v-card__text {
+        font-size: 1.2em;
+        padding-top: 27px;
+        padding-bottom: 27px;
+        overflow-wrap: normal;
+        padding-left: 20px;
+        padding-bottom: 20px;
+        border-width: 1px;
+      }
+      .side-columns i {
+        font-size: 50px;
+      }
+      
+      .side-columns img {
+        width: 50px;
+      }
+    }
     .theme--dark.v-card > .v-card__text {
       font-size: 1.3em;
       text-transform: uppercase;
@@ -173,8 +209,7 @@
       <v-col cols="10">
         <v-row align="center" justify="center" v-if="!noPlayer">
           <v-col cols="auto">
-            <span v-show="suddenDeath" class="sudden-death">SUDDEN DEATH - Anyone can guess but no more hints should be given. Any mistake loses the game.</span>
-            <span v-show="!iAmGuessing"><span v-text="nextPlayer.name"></span>'s</span><span v-show="iAmGuessing">MY</span> turn to <b>GUESS</b>
+            <span v-show="!iAmGuessing && !suddenDeath"><span v-text="nextPlayer.name"></span>'s</span><span v-show="iAmGuessing">MY</span> turn to <b>GUESS</b>
           </v-col>
           <v-col cols="2">
             <v-btn color="warning" outlined @click="stopGuessing" v-show="iAmGuessing"><v-icon>mdi-stop</v-icon> Stop guessing</v-btn>
@@ -195,9 +230,12 @@
             </v-row>
           </v-col>
         </v-row>
-        <v-row align="center" justify="center" v-if="noPlayer">
+        <v-row align="center" justify="center" v-if="noPlayer && !suddenDeath">
           Anyone can start with the first hint.
           <v-btn outlined class="ml-5" @click.stop="hintDialog = true">Give hint</v-btn>
+        </v-row>
+        <v-row align="center" justify="center"  v-if="suddenDeath">
+          <span class="sudden-death warning">SUDDEN DEATH - Anyone can guess but no more hints should be given. Any mistake loses the game.</span>
         </v-row>
         <v-row>
           <v-col cols="1" class="side-columns agents" align="center" justify="center">
@@ -208,9 +246,11 @@
           <v-col cols="10" style="position: relative">
             <v-overlay
               absolute
-              :opacity="0"
+              :opacity="noPlayer ? 0.5 : 0"
               :value="!iAmGuessing && !suddenDeath"
-            ></v-overlay>
+            >
+              <p v-if="noPlayer">Start by giving a hint! (Give hint button above)</p>
+            </v-overlay>
             <v-row v-for="row, i in rows" :key="i">
               <v-col class="col-one-fifth" v-for="word, j in row" :key="j">
                 <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">

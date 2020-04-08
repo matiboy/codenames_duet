@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import {chunk, throttle, range} from 'lodash'
-import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel, TimeoutScheduler } from 'amazon-chime-sdk-js';
+import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel, TimeoutScheduler, MeetingSessionStatus } from 'amazon-chime-sdk-js';
 import { logger, QualityMappings } from './chime';
 import { TestSound } from './chime/test-sound'
 // import Pusher from 'pusher-js' // Broken import :/ using window for now
@@ -29,8 +29,6 @@ class VueDeviceChangeObserver implements DeviceChangeObserver {
   vm: Vue
   constructor(vm: Vue) {
     this.vm = vm
-  }
-  videoInputsChanged() {
   }
   audioInputsChanged() {
     console.log('BLALA', arguments)
@@ -85,21 +83,22 @@ class VueAudioVideoObserver implements AudioVideoObserver {
     }
     anotherLogger.info('Index ' + JSON.stringify(index))
     
-    const tileElement = document.getElementById(`tile-${index}`) as HTMLDivElement;
     const videoElement = document.getElementById(`video-${index}`) as HTMLVideoElement;
     audioVideo.bindVideoElement(tileState.tileId, videoElement);
     // throttledLogMe(arguments)
   }
   
-  audioVideoDidStop() {
-    anotherLogger.info('Audio video has stopped, trying to restart')
+  audioVideoDidStop(status: MeetingSessionStatus) {
+    anotherLogger.info(`Audio video has stopped, ${status.statusCode}`)
     new TimeoutScheduler(1000).start(() => {
       anotherLogger.info('Attempting restart')
+      audioVideo.stop()
       audioVideo.start()
+    })
+  }
 
-    }
-    )
-    
+  videoTileWasRemoved() {
+    anotherLogger.info('Some video tile was removed but which??')
   }
 }
 
@@ -167,7 +166,9 @@ export default {
       const deviceController = new DefaultDeviceController(logger)
       const configuration = new MeetingSessionConfiguration((window as any).MEETING, (window as any).ATTENDEE);
       meetingSession = new DefaultMeetingSession(configuration, logger, deviceController)
-      audioVideo = meetingSession.audioVideo
+      audioVideo = meetingSession.audioVideo;
+      (window as any).av = audioVideo;
+      (window as any).sess = meetingSession;
       const deviceChangeObserver = new VueDeviceChangeObserver(this)
       audioVideo.addDeviceChangeObserver(deviceChangeObserver)
       // Let's load devices
@@ -208,6 +209,9 @@ export default {
     computed: {
       inVideo() {
         return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+      },
+      suddenDeath() {
+        return this.game.sudden_death
       },
       lost() {
         return Boolean(this.game.lost)
@@ -270,7 +274,7 @@ export default {
       },
       bystanders() {
         return [
-        1005, 1011, 1012, 1025, 129, 177, 22, 281, 338, 395
+          1025, 1005, 1011, 1012, 129, 177, 22, 281, 338, 395, 
         ].slice(0, this.game.initialBystanders)
         .map(i => `https://i.picsum.photos/id/${i}/60/60.jpg`)
       },
