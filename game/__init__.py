@@ -1,8 +1,9 @@
 import random
 import string
-from words import DECKS
 from typing import List
+from words import DECKS
 from utils import id_generator
+from game.outcomes import NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH
 
 class WrongPlayerException(Exception):
   """ Raised when it is not this player s turn """
@@ -24,7 +25,7 @@ class Player(object):
       return other.id == self.id
     return other == self.id or other == self.name
 
-def make_game(player1_name, player2_name, bystanders, decks, agents=15):
+def make_game(player1_name: str, player2_name: str, bystanders: int, decks, agents=15):
   randomized_words = set()
   randomized_words.update(*[DECKS[deck] for deck in decks])
   
@@ -65,6 +66,7 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
 
   return {
     'words': all_words,
+    'sudden_death': False,
     'decks': decks,
     'player1': {
       'name': player1_name,
@@ -92,15 +94,6 @@ def make_game(player1_name, player2_name, bystanders, decks, agents=15):
     'keys': 0,
   }
 
-NO_MORE_TIME = 1
-GREEN = 2
-YELLOW = 3
-BLACK = 4
-WIN = 5
-ALREADY_GUESSED = 6
-INVALID_WORD = 7
-STOPPED_GUESSING = 8
-NOT_YOUR_TURN = 9
 
 def get_other_player(player: int) -> int:
   return 3 - player
@@ -135,10 +128,14 @@ def guess(game, player: int, word: str) -> (int, dict):
   other_player_key = f'player{other_player}' 
   player_object = game[player_key]
   other_player_object = game[other_player_key]
+  # Basic validations
+  # Correct player is up
   if game['next_up'] is not None and player != game['next_up']:
     return (NOT_YOUR_TURN, game)
+  # No random words
   if word not in game['words']:
     return (INVALID_WORD, game)
+  # Same player can't click same word again
   if word in player_object['attempted_words']:
     return (ALREADY_GUESSED, game)
   # Passed all validations
@@ -155,71 +152,24 @@ def guess(game, player: int, word: str) -> (int, dict):
     else:
       return (GREEN, game)
   else:
-    game['bystanders'] -= 1
-    game['next_up'] = other_player
-    game['hint'] = {}
-    if game['bystanders'] == 0:
+    # In sudden death, yellow is lost
+    if game['sudden_death']:
       game['lost'] = True
       return (NO_MORE_TIME, game)
-    return (YELLOW, game)
+    game['bystanders'] -= 1
+    # Enter sudden death
+    if game['bystanders'] == 0:
+      game['sudden_death'] = True
+      # There is no "next" player, it's anyone's turn
+      game['next_up'] = None
+      return (SUDDEN_DEATH, game)
+    else:
+      game['next_up'] = other_player
+      game['hint'] = {}
+      return (YELLOW, game)
 
 def get_player_dict(game, player: int):
   return game[f'player{player}']
-
-class Game(object):
-  players = []
-  id = ''
-  next_player = None
-  history = None
-  hint = None
-  hint_count = None
-  def __init__(self, deck, player1_name, player2_name):
-      self.id = id_generator()
-      randomized_words = CODENAMES_WORDS.copy()
-      random.shuffle(randomized_words)
-      self.words = [randomized_words.pop() for _ in range(25)]
-      words = self.words.copy()
-      random.shuffle(words)
-      player1_black = [words.pop() for _ in range(3)]
-      player1_green = [words.pop() for _ in range(9)]
-      player1_yellow = words.copy()
-      player2_black = [player1_green[0], player1_black[0], player1_yellow[0]]
-      player2_green = player1_green[1:4]
-      words = [word for word in self.words if word not in player2_black and word not in player2_green]
-      player2_green = player2_green + [words.pop() for _ in range(6)]
-      self.players.append(Player(player1_name, player1_black, player1_green))
-      self.players.append(Player(player2_name, player2_black, player2_green))
-      self.history = []
-
-  def serialize(self):
-    return {
-      'words': self.words,
-      'player1': {
-        'black': self.players[0].black_words,
-        'green': self.players[0].green_words
-      },
-      'player2': {
-        'black': self.players[1].black_words,
-        'green': self.players[1].green_words
-      }
-    }
-
-  def get_player_name(self, player: str):
-    for play in self.players:
-      if play.id == player:
-        return play.name
-
-  def player_by_id(self, id):
-    return next((x for x in self.players if x == id), None)
-
-  def give_hint(self, player: str,  hint: str, hint_count: int):
-    if self.next_player is not None and player != self.next_player:
-      raise WrongPlayerException
-    self.next_player = self.player_by_id(player)
-    self.hint = hint
-    self.hint_count = hint_count
-    player_name = self.get_player_name(player)
-    self.history.append(f'{player_name} gave hint "{hint}" with a count of {hint_count}')
 
 def safe_game(game, id, players=None):
   players = players or ['player1', 'player2']

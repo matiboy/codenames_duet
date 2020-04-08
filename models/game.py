@@ -45,6 +45,7 @@ class Attendee(db.Model):
   token = db.Column(db.String(50), index=True, unique=True)
   name = db.Column(db.String(255))
   attendee_details = db.Column(db.Text)
+  initial_token = db.Column(db.String(50), index=False, unique=True)
   game_id = db.Column(db.Integer, db.ForeignKey('game.id'), nullable=True)
 
   def serialize(self):
@@ -56,6 +57,13 @@ class Attendee(db.Model):
   def update_attendee_details(self, attendee):
     self.attendee_details = json.dumps(attendee)
     db.session.commit()
+
+def read_from_initial_token(game, token):
+  attendee = Attendee.query.with_parent(game).filter_by(initial_token=token).first()
+  if attendee is not None:
+    attendee.initial_token = ''
+  db.session.commit()
+  return attendee
 
 def get_attendee(game, player_token):
   return Attendee.query.with_parent(game).filter_by(token=player_token).first()

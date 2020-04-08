@@ -7,3 +7,6 @@ alembic==1.4.2
 ipython==7.13.0
 Flask-Migrate==2.5.3
 pusher==3.0.0
+pytest==5.4.1
+pytest-flask==1.0.0
+assertpy==1.0
