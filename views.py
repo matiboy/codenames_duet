@@ -1,25 +1,29 @@
 
-from app import app
-from flask import request, make_response, abort, jsonify, render_template, redirect, url_for, send_from_directory
 import base64
-from functools import wraps
+import hashlib
 import hmac
+import json
+import os
+import random
 import string
 import time
-import hashlib
-from models import Room, Game, Attendee
-from game import give_hint, guess, make_game, record_viewed, safe_game, stop_guessing, skip_player
-from app import db
-from utils import id_generator
-import json
-import random
-from words import DECKS
-import os
+from functools import wraps
+
 import pusher
-from response import json_error, build_json_response
+from flask import (abort, jsonify, make_response, redirect, render_template,
+                   request, send_from_directory, url_for)
+from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
+
+from app import app, db
 from chime import create_attendee, create_meeting, get_client_from_env
+from game import (give_hint, guess, make_game, record_viewed, safe_game,
+                  skip_player, stop_guessing)
+from models import Attendee, Game, Room
 from models.game import get_attendee, update_game_details
-from request import game_or_404, attendee_or_404
+from request import attendee_or_404, game_or_404
+from response import build_json_response, json_error
+from utils import id_generator
+from words import DECKS
 
 pusher_client = pusher.Pusher(
   app_id=os.environ['PUSHER_APP_ID'],

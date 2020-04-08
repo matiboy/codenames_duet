@@ -64,11 +64,6 @@ const getPlayerNumber = () => {
   return (window as any).playerNumber
 }
 
-const logMe = function(whatever) {
-  console.log(whatever)
-}
-const throttledLogMe = throttle(logMe, 500)
-
 const post: (url: string, data: {[key: string]: any}) => Promise<ApiResponse> = (window as any).post
 
 let localTileId: number
@@ -85,7 +80,6 @@ class VueAudioVideoObserver implements AudioVideoObserver {
     
     const videoElement = document.getElementById(`video-${index}`) as HTMLVideoElement;
     audioVideo.bindVideoElement(tileState.tileId, videoElement);
-    // throttledLogMe(arguments)
   }
   
   audioVideoDidStop(status: MeetingSessionStatus) {
@@ -208,7 +202,7 @@ export default {
     },
     computed: {
       inVideo() {
-        return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+        return (['flow-load-devices', 'flow-devices'].includes(this.videoStep))
       },
       suddenDeath() {
         return this.game.sudden_death

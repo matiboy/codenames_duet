@@ -96,6 +96,15 @@ def test_should_allow_any_player_during_sudden_death():
   outcome, game = guess(game, 2, 'z') #"wrong" player
   assert_that(outcome).is_not_equal_to(NOT_YOUR_TURN)
 
+@mark.sudden_death
+def test_should_not_set_next_up_on_green():
+  game = get_game()
+  game['sudden_death'] = True
+  
+  outcome, game = guess(game, 2, 'o')
+  assert_that(outcome).is_equal_to(GREEN)
+  assert_that(game).has_next_up(None)
+
 def test_should_handle_yellow():
   """Yellow kills a bystander and alternates roles"""
   game = get_game()
