@@ -1,4 +1,5 @@
 from game import guess, make_game, skip_player
+from game.dataclasses import Game
 from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP
 from assertpy import assert_that
 
@@ -32,6 +33,9 @@ def get_game():
   'won': False,
   'keys': 0,
 }
+
+def get_game_dc() -> Game:
+  return Game.from_dict(get_game())
 
 def test_should_enter_sudden_death():
   """Sudden death is triggered when last bystander is killed"""

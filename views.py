@@ -8,7 +8,7 @@ import string
 import time
 import hashlib
 from models import Room, Game, Attendee
-from game import give_hint, guess, make_game, record_viewed, safe_game, stop_guessing
+from game import give_hint, guess, make_game, record_viewed, safe_game, stop_guessing, skip_player
 from app import db
 from utils import id_generator
 import json
@@ -20,14 +20,6 @@ from response import json_error, build_json_response
 from chime import create_attendee, create_meeting, get_client_from_env
 from models.game import get_attendee, update_game_details
 from request import game_or_404, attendee_or_404
-
-# @app.route('/signature')
-# def make_signature():
-#     data = {'apiKey': "Vll7I_NaS6KORk06NjJ8qw" ,
-#     'apiSecret': "DOMoWSVWYKC7OACsfmbHpi1DDio4owIKqKVm",
-#     'meetingNumber': request.args.get('meeting'),
-#     'role': request.args.get('role', type=int)}
-#     return generateSignature(data)
 
 pusher_client = pusher.Pusher(
   app_id=os.environ['PUSHER_APP_ID'],
@@ -172,7 +164,8 @@ def player_js(player_token, db_attendee, db_game, game, game_id):
         'game': url_for('game_details', game_id=game_id),
         'game_channel': channels[0],
         'player_channel': channels[player_index], # one-indexed
-        'hint': url_for('hint_route', player_token=player_token, game_id=game_id)
+        'hint': url_for('hint_route', player_token=player_token, game_id=game_id),
+        'skip': url_for('skip', player_token=player_token, game_id=game_id)
       }
     )
   )
@@ -211,6 +204,15 @@ def key(game_id, db_game, game, db_attendee, **kwargs):
   return {
     'green': player_dict['green'],
     'black': player_dict['black']
+  }
+
+@app.route('/skip/<game_id>/<player_token>', endpoint='skip', methods=['POST'])
+@game_or_404()
+@attendee_or_404
+def skip(game_id, db_game, game, db_attendee, **kwargs):
+  outcome, game = skip(game, db_attendee.index)
+  return {
+    
   }
 
 @app.route('/stop/<game_id>/<player_token>', methods=['POST'], endpoint='stop_route')
