@@ -119,8 +119,8 @@ def guess(game, player: int, word: str) -> (int, dict):
   player_object = game[player_key]
   other_player_object = game[other_player_key]
   # Basic validations
-  # Correct player is up
-  if game['next_up'] is not None and player != game['next_up']:
+  # Correct player is up - or its sudden death/first guess
+  if game['next_up'] is not None and game['sudden_death'] is False and player != game['next_up']:
     return (NOT_YOUR_TURN, game)
   # No random words
   if word not in game['words']:

@@ -1,6 +1,6 @@
 import Vue from 'vue'
 import {chunk, throttle, range} from 'lodash'
-import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel } from 'amazon-chime-sdk-js';
+import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel, TimeoutScheduler } from 'amazon-chime-sdk-js';
 import { logger, QualityMappings } from './chime';
 import { TestSound } from './chime/test-sound'
 // import Pusher from 'pusher-js' // Broken import :/ using window for now
@@ -31,7 +31,6 @@ class VueDeviceChangeObserver implements DeviceChangeObserver {
     this.vm = vm
   }
   videoInputsChanged() {
-    console.log("RIIIIIGGGGT", arguments)
   }
   audioInputsChanged() {
     console.log('BLALA', arguments)
@@ -87,11 +86,20 @@ class VueAudioVideoObserver implements AudioVideoObserver {
     anotherLogger.info('Index ' + JSON.stringify(index))
     
     const tileElement = document.getElementById(`tile-${index}`) as HTMLDivElement;
-    anotherLogger.info('tileElement' + tileElement)
     const videoElement = document.getElementById(`video-${index}`) as HTMLVideoElement;
-    anotherLogger.info('videoElement' + videoElement)
     audioVideo.bindVideoElement(tileState.tileId, videoElement);
     // throttledLogMe(arguments)
+  }
+  
+  audioVideoDidStop() {
+    anotherLogger.info('Audio video has stopped, trying to restart')
+    new TimeoutScheduler(1000).start(() => {
+      anotherLogger.info('Attempting restart')
+      audioVideo.start()
+
+    }
+    )
+    
   }
 }
 
@@ -198,6 +206,9 @@ export default {
       this.selectAudioOutput(this.selectedAudioOutput)
     },
     computed: {
+      inVideo() {
+        return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+      },
       lost() {
         return Boolean(this.game.lost)
       },

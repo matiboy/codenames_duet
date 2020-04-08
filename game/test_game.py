@@ -1,7 +1,8 @@
 from game import guess, make_game, skip_player
 from game.dataclasses import Game
-from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP
+from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP, NOT_YOUR_TURN
 from assertpy import assert_that
+from pytest import mark
 
 def get_game():
   return {
@@ -37,6 +38,7 @@ def get_game():
 def get_game_dc() -> Game:
   return Game.from_dict(get_game())
 
+@mark.sudden_death
 def test_should_enter_sudden_death():
   """Sudden death is triggered when last bystander is killed"""
   game = get_game()
@@ -49,6 +51,7 @@ def test_should_enter_sudden_death():
   assert_that(game['sudden_death']).is_true()
   assert_that(game['next_up']).is_none()
 
+@mark.sudden_death
 def test_should_lose_on_yellow_in_sudden_death():
   """During sudden death, yellow means lose"""
   game = get_game()
@@ -59,6 +62,40 @@ def test_should_lose_on_yellow_in_sudden_death():
   assert_that(outcome).is_equal_to(NO_MORE_TIME)
   assert_that(game['lost']).is_true()
 
+@mark.standard_play
+def test_should_allow_correct_player():
+  game = get_game()
+  game['next_up'] = 1
+
+  outcome, game = guess(game, 1, 'z')
+  assert_that(outcome).is_equal_to(YELLOW)
+
+@mark.standard_play
+def test_should_disallow_wrong_player():
+  game = get_game()
+  game['next_up'] = 1
+
+  outcome, game = guess(game, 2, 'z')
+  assert_that(outcome).is_equal_to(NOT_YOUR_TURN)
+  assert_that(game).has_next_up(1) # unchanged
+
+@mark.standard_play
+def test_should_allow_any_player_if_not_initialized():
+  game = get_game()
+
+  outcome, game = guess(game, 2, 'z')
+  assert_that(outcome).is_equal_to(YELLOW)
+  assert_that(game).has_next_up(1) # other player is next since failed
+
+@mark.sudden_death
+def test_should_allow_any_player_during_sudden_death():
+  game = get_game()
+  game['next_up'] = 1
+  game['sudden_death'] = True
+  
+  outcome, game = guess(game, 2, 'z') #"wrong" player
+  assert_that(outcome).is_not_equal_to(NOT_YOUR_TURN)
+
 def test_should_handle_yellow():
   """Yellow kills a bystander and alternates roles"""
   game = get_game()
@@ -67,8 +104,8 @@ def test_should_handle_yellow():
   outcome, game = guess(game, 1, 'z')
 
   assert_that(outcome).is_equal_to(YELLOW)
-  assert_that(game['lost']).is_false()
-  assert_that(game['bystanders']).is_equal_to(7)
+  assert_that(game).has_lost(False)
+  assert_that(game).has_bystanders(7)
 
 def test_should_lose_on_black():
   """Black is immediate loss"""
