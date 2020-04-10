@@ -18,6 +18,7 @@ from app import app, db, signer
 from chime import create_attendee, create_meeting, get_client_from_env
 from game import (give_hint, guess, make_game, record_viewed, safe_game,
                   skip_player, stop_guessing)
+from game.dataclasses import Game as GameDC, Hint
 from models import Attendee, Game, Room
 from models.game import get_attendee, update_game_details
 from request import attendee_or_404, game_or_404
@@ -226,6 +227,7 @@ def skip(game_id, db_game, game, db_attendee, **kwargs):
 def stop_route(game_id, player_token, game, db_game, db_attendee,  **kwargs):
   content = request.get_json()
   index = db_attendee.index
+  game = GameDC.from_dict(game)
   result, game = stop_guessing(game, index)
   update_game_details(game, game_id)
   channel = get_other_player_channel(db_game, player_token)

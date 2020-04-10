@@ -36,8 +36,9 @@ def get_game():
   'lost': False,
   'won': False,
   'keys': 0,
+  'hint': {'count': 0, 'word': ''},
   'history': {'entries': [
-    {'kind': Kind.CREATED}
+    {'kind': Kind.CREATED, 'context': {}}
   ]}
 }
 
@@ -60,16 +61,17 @@ def test_should_enter_sudden_death():
 @mark.sudden_death
 def test_should_enter_sudden_death_on_stop():
   """Sudden death is triggered when last bystander is killed"""
-  game = get_game()
-  game['next_up'] = 2
-  game['bystanders'] = 1
+  game = get_game_dc()
+  game.next_up = 2
+  game.bystanders = 1
 
   outcome, game = stop_guessing(game, 2)
 
   assert_that(outcome).is_equal_to(Outcomes.SUDDEN_DEATH)
-  assert_that(game['lost']).is_false()
-  assert_that(game['sudden_death']).is_true()
-  assert_that(game['next_up']).is_none()
+  assert_that(game.lost).is_false()
+  assert_that(game.hint.word).is_empty()
+  assert_that(game.sudden_death).is_true()
+  assert_that(game.next_up).is_none()
 
 @mark.sudden_death
 def test_should_lose_on_yellow_in_sudden_death():
@@ -84,9 +86,9 @@ def test_should_lose_on_yellow_in_sudden_death():
 
 @mark.standard_play
 def test_should_reduce_bystanders_on_stop():
-  game = get_game()
-  game['bystanders'] = 5
-  game['next_up'] = 1
+  game = get_game_dc()
+  game.bystanders = 5
+  game.next_up = 1
 
   outcome, game = stop_guessing(game, 1)
   assert_that(outcome).is_equal_to(Outcomes.STOPPED_GUESSING)
@@ -95,9 +97,9 @@ def test_should_reduce_bystanders_on_stop():
 
 @mark.standard_play
 def test_should_not_allow_wrong_player_on_stop():
-  game = get_game()
-  game['bystanders'] = 2
-  game['next_up'] = 1
+  game = get_game_dc()
+  game.bystanders = 2
+  game.next_up = 1
 
   outcome, game = stop_guessing(game, 2)
   assert_that(outcome).is_equal_to(Outcomes.NOT_YOUR_TURN)

@@ -5,6 +5,7 @@ from words import DECKS, Decks
 from utils import id_generator
 from game.outcomes import CANNOT_SKIP, NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH, SKIPPED
 from game.outcomes import Outcomes
+from game.dataclasses import Game, Hint
 
 def make_game(player1_name: str, player2_name: str, bystanders: int, decks: List[str], agents=15):
   # Read deck keys into enum
@@ -76,7 +77,8 @@ def make_game(player1_name: str, player2_name: str, bystanders: int, decks: List
     'lost': False,
     'won': False,
     'keys': 0,
-    'history': {'entries': []}
+    'history': {'entries': []},
+    'hint': {}
   }
 
 
@@ -108,16 +110,16 @@ def skip_player(game, player_index: int) -> (int, dict):
   game['next_up'] = get_other_player(player_index)
   return (SKIPPED, game)
 
-def stop_guessing(game, player: int) -> (Outcomes, dict):
-  if game['next_up'] != player:
+def stop_guessing(game: Game, player: int) -> (Outcomes, Game):
+  if game.next_up != player:
     return Outcomes.NOT_YOUR_TURN, game
-  game['bystanders'] -= 1
-  game['hint'] = {}
-  if game['bystanders'] == 0:
-    game['next_up'] = None
-    game['sudden_death'] = True
+  game.bystanders -= 1
+  game.hint = Hint.blank()
+  if game.bystanders == 0:
+    game.next_up = None
+    game.sudden_death = True
     return (Outcomes.SUDDEN_DEATH, game)
-  game['next_up'] = get_other_player(player)
+  game.next_up = get_other_player(player)
   return (Outcomes.STOPPED_GUESSING, game)
 
 def guess(game, player: int, word: str) -> (int, dict):

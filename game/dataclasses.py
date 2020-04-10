@@ -10,6 +10,10 @@ class Hint:
   count: int
   word: str
 
+  @staticmethod
+  def blank():
+    return Hint(count=0, word='')
+
 @dataclass_json(letter_case=LetterCase.CAMEL)
 @dataclass
 class Player:
@@ -37,3 +41,4 @@ class Game:
   sudden_death: bool
   won: bool
   words: List[str]
+  hint: Optional[Hint]
