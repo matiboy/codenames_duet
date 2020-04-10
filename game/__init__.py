@@ -1,6 +1,6 @@
 import random
 import string
-from typing import List
+from typing import List, Union
 from words import DECKS, Decks
 from utils import id_generator
 from game.outcomes import CANNOT_SKIP, NO_MORE_TIME, GREEN, YELLOW, BLACK, WIN, ALREADY_GUESSED, INVALID_WORD, STOPPED_GUESSING, NOT_YOUR_TURN, SUDDEN_DEATH, SKIPPED
@@ -78,7 +78,8 @@ def make_game(player1_name: str, player2_name: str, bystanders: int, decks: List
     'won': False,
     'keys': 0,
     'history': {'entries': []},
-    'hint': {}
+    'hint': {},
+    'lost_reason': ''
   }
 
 
@@ -89,10 +90,10 @@ def record_viewed(game, player_key: str):
   game[player_key]['loaded'] = True
   return game
 
-def give_hint(game, db_attendee, hint_text: str, hint_count: int):
+def give_hint(game, db_attendee, hint: Hint):
   game['hint'] = {
-    'word': hint_text,
-    'count': hint_count
+    'word': hint.word,
+    'count': hint.count
   }
   get_player_dict(game, db_attendee.index)['hints'].append(game['hint'])
   # If not yet started, we set up who is next; otherwise it doesnt change
@@ -101,13 +102,14 @@ def give_hint(game, db_attendee, hint_text: str, hint_count: int):
   return game
 
 def skip_player(game, player_index: int) -> (int, dict):
-  if game['next_up'] != player_index:
+  # Player must be next to hint; next_up represents guessing
+  if game['next_up'] == player_index:
     return (CANNOT_SKIP, game)
   player_dict = get_player_dict(game, player_index)
   unfound = [word for word in player_dict['green'] if word not in game['found']]
   if len(unfound) != 0:
     return (CANNOT_SKIP, game)
-  game['next_up'] = get_other_player(player_index)
+  game['next_up'] = player_index # next_up is guessing; player skips hint phase
   return (SKIPPED, game)
 
 def stop_guessing(game: Game, player: int) -> (Outcomes, Game):
@@ -122,7 +124,9 @@ def stop_guessing(game: Game, player: int) -> (Outcomes, Game):
   game.next_up = get_other_player(player)
   return (Outcomes.STOPPED_GUESSING, game)
 
-def guess(game, player: int, word: str) -> (int, dict):
+def guess(game: Game, player: int, word: str) -> (int, dict):
+  # if type(game) is dict:
+  #   game = Game.from_dict(game)
   player_key = f'player{player}'
   other_player = get_other_player(player)
   other_player_key = f'player{other_player}' 
@@ -142,6 +146,7 @@ def guess(game, player: int, word: str) -> (int, dict):
   player_object['attempted_words'].append(word)
   if word in other_player_object['black']:
     game['lost'] = True
+    game['lost_reason'] = f'{player_object["name"]} was killed by an assassin'
     return (BLACK, game)
   if word in other_player_object['green']:
     # Sudden death we don't change player
@@ -158,6 +163,7 @@ def guess(game, player: int, word: str) -> (int, dict):
     # In sudden death, yellow is lost
     if game['sudden_death']:
       game['lost'] = True
+      game['lost_reason'] = 'You ran out of time'
       return (NO_MORE_TIME, game)
     game['bystanders'] -= 1
     # Enter sudden death
@@ -174,8 +180,10 @@ def guess(game, player: int, word: str) -> (int, dict):
 def get_player_dict(game, player: int):
   return game[f'player{player}']
 
-def safe_game(game, id, players=None):
+def safe_game(game: Union[Game, dict], id, players=None) -> dict:
   players = players or ['player1', 'player2']
+  if type(game) is Game:
+    game = game.to_dict()
   for player in players:
     del game[player]['black']
     del game[player]['green']

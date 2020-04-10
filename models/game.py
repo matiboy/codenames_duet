@@ -1,6 +1,7 @@
 from app import db
 import json
 import uuid
+from typing import Union
 
 class Game(db.Model):
   id = db.Column(db.Integer, primary_key=True)
@@ -78,8 +79,10 @@ def get_game(id: str, as_dict=False):
 def game_to_dict(game: Game) -> dict:
   return json.loads(game.game_details)
 
-def update_game_details(game: dict, id: str):
+def update_game_details(game, id: str):
   db_game = get_game(id)
+  # if type(game) is GameDC:
+  #   game = game.to_dict()
   db_game.game_details = json.dumps(game)
   db.session.commit()
 

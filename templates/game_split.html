@@ -39,6 +39,9 @@
         width: 50px;
       }
     }
+    .side-columns img {
+      width: 60px;
+    }
     .theme--dark.v-card > .v-card__text {
       font-size: 1.3em;
       text-transform: uppercase;
@@ -176,7 +179,7 @@
     </v-row>
     <v-row v-show="inVideo">
       <v-col cols="2">
-        <key :words="game.words" :green="key.green" :black="key.black"></key>
+        <key :words="game.words" :green="key.green" :black="key.black" @click.native="refreshGame"></key>
         <div id="flow-devices" class="flow" v-show="videoStep === 'flow-in-meeting'">
           <div id="tile-0">
             <video id="video-0"></video>
@@ -256,8 +259,7 @@
                 <v-card @click="pointed(word)" class="word-wrapper" :class="{found: isFound(word)}">
                   <v-card-text class="text-center">
                     <div class="attempted-wrapper">
-                      <v-icon v-if="player1Attempted(word)">mdi-numeric-1-circle</v-icon>
-                      <v-icon v-if="player2Attempted(word)">mdi-numeric-2-circle</v-icon>
+                      <v-icon v-if="playerAttempted(word)">mdi-alert-circle</v-icon>
                     </div>
                     <div v-text="word"></div>
                   </v-card-text>
@@ -289,7 +291,7 @@
       </v-card>
     </v-footer>
   </v-container>
-  <v-dialog v-model="hintDialog" max-width="390">
+  <v-dialog v-model="hintDialog" light max-width="390">
     <v-card>
       <v-card-title class="headline dark">Give hint</v-card-title>
       <v-card-text>
@@ -317,6 +319,25 @@
       </v-card-actions>
     </v-card>
 
+  </v-dialog>
+  <v-dialog v-model="playerCantHintDialog" light max-width="500">
+    <v-card>
+      <v-card-title class="headline dark">All your agents have been found</v-card-title>
+      <v-card-text>
+        <p>It should be your turn to give a hint but all your agents have already been found.</p>
+        <p>Click "Skip" below to give the hand back to <span v-text="nextPlayer.name"></span>.</p>
+        <p class="caption">Note: no innocent bystander will be killed.</p>
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer></v-spacer>
+        <v-btn
+          color="green darken-1"
+          dark
+          outlined
+          @click="confirmSkip"
+        >Skip</v-btn>
+      </v-card-actions>
+    </v-card>
   </v-dialog>
   <v-dialog v-model="buyMeDialog" fullscreen hide-overlay transition="dialog-bottom-transition">
     <v-card>
@@ -452,10 +473,27 @@
       </v-container>
     </v-card>
   </v-dialog>
-  <v-overlay :value="ended" :color="overlayColor">
-    <h1 class="success--text" v-if="won">Win!</h1>
-    <h1 class="error--text" v-if="lost">LOST 😓</h1>
-    <v-btn large @click="startNew">Start new game</v-btn>
+  <v-overlay :value="ended" :color="overlayColor" :opacity="1">
+    <v-container>
+      <v-row align="center">
+        <v-col cols="6">
+          <h1 class="white--text" v-if="won">Win!</h1>
+          <p class="white--text display-2" v-if="lost"><p>
+            LOST 😓</p>
+            <p v-text="game.lost_reason"></p></p>
+          <v-btn large @click="startNew">Start new game</v-btn>
+        </v-col>
+        <v-col cols="6">
+          <v-card light>
+            <v-card-title>Replay</v-card-title>
+            <v-card-text>
+              <p class="caption" v-for="entry in game.history.entries" v-text="entry"></p>
+
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+    </v-container>
   </v-overlay>
 </v-content>
 {% endblock %}

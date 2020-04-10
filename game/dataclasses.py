@@ -1,6 +1,6 @@
 from typing import List, Optional, Union
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json, LetterCase
+from dataclasses import dataclass, field
+from dataclasses_json import dataclass_json, config
 from words import Decks
 from history import History
 
@@ -10,11 +10,11 @@ class Hint:
   count: int
   word: str
 
-  @staticmethod
-  def blank():
-    return Hint(count=0, word='')
+  @classmethod
+  def blank(cls):
+    return cls(count=0, word='')
 
-@dataclass_json(letter_case=LetterCase.CAMEL)
+@dataclass_json()
 @dataclass
 class Player:
   attempted_words: List[str]
@@ -24,12 +24,23 @@ class Player:
   loaded: bool
   name: str
 
-@dataclass_json(letter_case=LetterCase.CAMEL)
+def decks_to_str(value: List[Decks]):
+  return [Decks(v).value for v in value]
+
+def str_to_decks(value: List[str]):
+  return [Decks[v] for v in value]
+
+@dataclass_json()
 @dataclass
 class Game:
+  decks: List[Decks] = field(
+    metadata=config(
+        encoder=decks_to_str,
+        decoder=str_to_decks
+    )
+  )
   agents: int
   bystanders: int
-  decks: List[Decks]
   found: List[str]
   history: History
   initialBystanders: int
@@ -42,3 +53,4 @@ class Game:
   won: bool
   words: List[str]
   hint: Optional[Hint]
+  lost_reason: Optional[str]

@@ -127,14 +127,10 @@ def start_game_split(game_id, player_token, db_game, game, db_attendee, **kwargs
 def hint(player_token, db_attendee, db_game, game, game_id, **kwargs):
   # TODO save that in dB?
   other_channel = get_other_player_channel(db_game, player_token)
-  # TODO this is actually probably not needed, since we refresh the game
-  # pusher_client.trigger(other_channel, 'new_hint', {
-  #   'word': request.args.get('word'),
-  #   'count': request.args.get('count'),
-  # })
-  game = give_hint(game, db_attendee, request.args.get('word'), request.args.get('count'))
+  hint = Hint(word=request.args.get('word'), count=request.args.get('count'))
+  game = give_hint(game, db_attendee, hint)
   update_game_details(game, game_id)
-  pusher_client.trigger(other_channel, 'game_update', {})
+  pusher_client.trigger(other_channel, 'game_update', {'message': f'Hint given: {hint.word} ({hint.count})'})
 
   return {
     'result': 1,
@@ -216,9 +212,11 @@ def key(game_id, db_game, game, db_attendee, **kwargs):
 @game_or_404()
 @attendee_or_404
 def skip(game_id, db_game, game, db_attendee, **kwargs):
-  outcome, game = skip(game, db_attendee.index)
+  outcome, game = skip_player(game, db_attendee.index)
+  update_game_details(game, game_id)
   return {
-    
+    'outcome': outcome,
+    'game': safe_game(game, game_id)
   }
 
 @app.route('/stop/<game_id>/<player_token>', methods=['POST'], endpoint='stop_route')
@@ -229,10 +227,12 @@ def stop_route(game_id, player_token, game, db_game, db_attendee,  **kwargs):
   index = db_attendee.index
   game = GameDC.from_dict(game)
   result, game = stop_guessing(game, index)
-  update_game_details(game, game_id)
+  game = game.to_dict()
+  game['decks'] = json.dumps(game['decks'], default=str)
+  update_game_details(game.to_dict(), game_id)
   channel = get_other_player_channel(db_game, player_token)
   app.logger.info(f'Triggering update on socket channel {channel}')
-  pusher_client.trigger(channel, 'game_update', {})
+  pusher_client.trigger(channel, 'game_update', {'message': "Stopped guessing"})
   return {
     'result': result,
     'game': safe_game(game, game_id)
@@ -244,11 +244,12 @@ def stop_route(game_id, player_token, game, db_game, db_attendee,  **kwargs):
 def guess_route(game_id, game, db_game, player_token, db_attendee):
   content = request.get_json()
   index = db_attendee.index
-  result, game = guess(game, word=content['word'], player=index)
+  word = content['word']
+  result, game = guess(game, word=word, player=index)
   update_game_details(game, game_id)
   channel = get_other_player_channel(db_game, player_token)
   app.logger.info(f'Triggering update on socket channel {channel}')
-  pusher_client.trigger(channel, 'game_update', {})
+  pusher_client.trigger(channel, 'game_update', {'message': f'Guessed "{word}"'})
   return {
     'result': result,
     'game': safe_game(game, game_id)

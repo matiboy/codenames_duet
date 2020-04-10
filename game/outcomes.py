@@ -13,7 +13,7 @@ SUDDEN_DEATH = 10
 SKIPPED = 11
 CANNOT_SKIP = 12
 
-class Outcomes(enum.Enum):
+class Outcomes(str, enum.Enum):
   NO_MORE_TIME = 'NO_MORE_TIME'
   GREEN = 'GREEN'
   YELLOW = 'YELLOW'

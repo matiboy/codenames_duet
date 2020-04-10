@@ -43,7 +43,7 @@ def get_game():
 }
 
 def get_game_dc() -> Game:
-  return Game.from_dict(get_game())
+  return Game.from_dict(get_game(), infer_missing=True)
 
 @mark.sudden_death
 def test_should_enter_sudden_death():
@@ -218,12 +218,12 @@ def test_should_allow_skipping_when_no_more_words():
   game = get_game()
   # All player 1 found
   game['found'] = ['d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'g']
-  game['next_up'] = 1
+  game['next_up'] = 2 # that's next for guessing
   
   outcome, game = skip_player(game, 1)
 
   assert_that(outcome).is_equal_to(SKIPPED)
-  assert_that(game['next_up']).is_equal_to(2)
+  assert_that(game['next_up']).is_equal_to(1)
   # No bystander killed
   assert_that(game['bystanders']).is_equal_to(9)
 
@@ -231,25 +231,41 @@ def test_should_not_allow_skipping_wrong_player():
   game = get_game()
   # All player 1 found - should not matter here
   game['found'] = ['d', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'g']
-  game['next_up'] = 1
+  game['next_up'] = 2 # that's next for guessing
   
-  # Player 2 trying to skip, but not their turn
+  # Player 2 trying to skip, but not their turn to hint
   outcome, game = skip_player(game, 2)
 
   assert_that(outcome).is_equal_to(CANNOT_SKIP)
   # unchanged
-  assert_that(game['next_up']).is_equal_to(1)
+  assert_that(game['next_up']).is_equal_to(2)
 
 
 def test_should_not_allow_skipping_some_words_left():
   game = get_game()
   # Not all player 1 found
   game['found'] = ['d', 'e', 'f', 'g']
-  game['next_up'] = 1
+  game['next_up'] = 2
   
   outcome, game = skip_player(game, 1)
 
   assert_that(outcome).is_equal_to(CANNOT_SKIP)
   # unchanged
-  assert_that(game['next_up']).is_equal_to(1)
+  assert_that(game['next_up']).is_equal_to(2)
   assert_that(game['bystanders']).is_equal_to(9)
+
+def test_should_state_losing_reason_assassin():
+  game = get_game_dc()
+  game.next_up = 2
+
+  outcome, game = guess(game.to_dict(), 2, 'b')
+  assert_that(outcome).is_equal_to(BLACK)
+  assert_that(game).has_lost_reason('Jane was killed by an assassin')
+
+def test_should_state_losing_reason_out_of_time():
+  game = get_game_dc()
+  game.sudden_death = True
+
+  outcome, game = guess(game.to_dict(), 2, 'z')
+  assert_that(outcome).is_equal_to(NO_MORE_TIME)
+  assert_that(game).has_lost_reason('You ran out of time')

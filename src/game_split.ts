@@ -1,5 +1,5 @@
 import Vue from 'vue'
-import {chunk, throttle, range} from 'lodash'
+import {chunk, throttle, range, difference} from 'lodash'
 import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel, TimeoutScheduler, MeetingSessionStatus } from 'amazon-chime-sdk-js';
 import { logger, QualityMappings } from './chime';
 import { login } from './api'
@@ -16,7 +16,7 @@ let selectedVideoDevice: string
 let selectedAudioOutput: string
 const anotherLogger = new ConsoleLogger('CoVIDenames', LogLevel.INFO)
 interface UpdateMessage {
-  updater: number
+  message: string
 }
 interface HintMessage {
   word: string
@@ -58,13 +58,9 @@ const getAudioOutputElement = (): HTMLAudioElement => {
 const getAttendee = fromWindowBuilder<Attendee>('ATTENDEE')
 const getUrls = fromWindowBuilder<{[key: string]: string}>('URLS')
 
-const getGame = (): Game => {
-  return (window as any).GAME
-}
+const getGame = fromWindowBuilder<Game>('GAME')
 
-const getPlayerNumber = () => {
-  return (window as any).playerNumber
-}
+const getPlayerNumber = fromWindowBuilder<number>('playerNumber')
 
 const post: (url: string, data: {[key: string]: any}) => Promise<ApiResponse> = (window as any).post
 
@@ -114,6 +110,7 @@ export default {
       rulesDialog: false,
       hintDialog: false,
       contactDialog: false,
+      playerCantHintDialog: false,
       buyMeDialog: false,
       giveHint: {
         text: '',
@@ -148,16 +145,12 @@ export default {
       const channel = pusher.subscribe(getUrls().player_channel)
       // const gameChannel = pusher.subscribe(getUrls().game_channel)
       channel.bind('game_update', (data: UpdateMessage) => {
-        console.log(data, getPlayerNumber(), data.updater !== getPlayerNumber())
-        if(data.updater !== getPlayerNumber()) {
-          this.refreshGame()
-        }
+        this.refreshGame()
+        this.showSnackbar(data.message)
       });
       channel.bind('key_update', (data: UpdateMessage) => {
         anotherLogger.info('Key has being updated')
-        if(data.updater !== getPlayerNumber()) {
-          this.refreshKey()
-        }
+        this.refreshKey()
       });
       channel.bind('new_hint', (data: HintMessage) => {
         anotherLogger.info(`New hint! ${data}`)
@@ -210,7 +203,7 @@ export default {
     },
     computed: {
       inVideo() {
-        return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+        return (['flow-load-devices', 'flow-devices'].includes(this.videoStep))
       },
       suddenDeath() {
         return this.game.sudden_death
@@ -240,11 +233,14 @@ export default {
       playerStatus() {
         if(!this.game.next_up) {
           return 'open'
-        } else if(this.game.next_up === getPlayerNumber()) {
+        } else if(this.playerIsGuesser) {
           return 'guess'
         } else {
           return 'hint'
         }
+      },
+      playerGameStatus() {
+        return this.game[`player${getPlayerNumber()}`]
       },
       playerStatusText() {
         if (this.playerStatus === 'guess') {return 'guessing'}
@@ -274,11 +270,20 @@ export default {
       player2() {
         return this.next_up === 2
       },
+      playerIsGuesser() {
+        return this.next_up === getPlayerNumber()
+      },
+      playerIsHinter() {
+        return !this.playerIsGuesser
+      },
+      playerCantHint() {
+        return this.playerIsHinter && (difference(this.key.green, this.game.found).length === 0)
+      },
       bystanders() {
         return [
-          1025, 1005, 1011, 1012, 129, 177, 22, 281, 338, 395, 
+          'mgonto', 'koridhandy', 'marklamb', '_shahedk', 'RussellBishop', 'shanehudson', 'travis_arnold', 'kushsolitary', 'jeremyshimko', 'atariboy', 'nasirwd', 'danmartin70' 
         ].slice(0, this.game.initialBystanders)
-        .map(i => `https://i.picsum.photos/id/${i}/60/60.jpg`)
+        .map(i => `https://s3.amazonaws.com/uifaces/faces/twitter/${i}/128.jpg`)
       },
       ended() {
         return (this.lost || this.won)
@@ -291,6 +296,11 @@ export default {
       async startNew() {
         await post(`/game/${getGame().id}/new`, {})
         this.refreshGame()
+      },
+      async confirmSkip() {
+        this.playerCantHintDialog = false
+        const {result, game} = await post(`${getUrls().skip}`, {})
+        this.game = game
       },
       async confirmHint() {
         this.hintDialog = false
@@ -305,7 +315,12 @@ export default {
             'Content-Type': 'application/json'
           }
         }).then(x => x.json())
-        .then(x => this.game = x.game)
+        .then(x => {
+          this.game = x.game
+          if(this.playerCantHint) {
+            this.playerCantHintDialog = true
+          }
+        })
       },
       refreshKey() {
         fetch(getUrls().key, {
@@ -387,7 +402,10 @@ export default {
       isFound(word: string) {
         return this.game.found.includes(word)
       },
-      async showSnackbar(text) {
+      async showSnackbar(text: string) {
+        if(!text) {
+          return
+        }
         // Make sure snackbar was gone first
         this.snackbar = false
         await this.$nextTick()
@@ -403,7 +421,7 @@ export default {
         if(this.game.next_up !== null && this.game.next_up !== getPlayerNumber()) {
           return
         }
-        if(this.isFound(word) || (this.player1 && this.player1Attempted(word)) || (this.player2 && this.player2Attempted(word))) {
+        if(this.isFound(word) || this.playerAttempted(word)) {
           return
         }
         const result = await this.serverAction(`/guess/${this.game.id}/${getAttendee().ExternalUserId}`, {
@@ -438,13 +456,9 @@ export default {
         }
         return result
       },
-      player1Attempted(word) {
+      playerAttempted(word: string) {
         if(this.game.found.includes(word)) { return false }
-        return this.game.player1.attempted_words.includes(word)
-      },
-      player2Attempted(word) {
-        if(this.game.found.includes(word)) { return false }
-        return this.game.player2.attempted_words.includes(word)
+        return this.playerGameStatus.attempted_words.includes(word)
       },
       onVolumeIndicator(attendeeId: string, volume: number, muted: boolean, signalStrength: number, externalUserId?: string) {
         anotherLogger.info(`Attendee ${attendeeId} s volume is set to ${volume} and muted is ${muted}`)
