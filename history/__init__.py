@@ -9,6 +9,10 @@ class Entry:
   kind: Kind
   context: Dict
 
+  @staticmethod
+  def of_kind(kind: Kind):
+    return Entry(kind=kind, context={})
+
 @dataclass_json
 @dataclass
 # @dataclass_json
@@ -22,3 +26,6 @@ class History:
 def add_guess(history: History, word: str) -> History:
   history.entries.append(Entry(kind=Kind.GUESS, context={'word': word}))
   return history
+
+def start_history(history: History) -> History:
+  history.entries.append(Entry.of_kind(Kind.CREATED))

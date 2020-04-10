@@ -14,7 +14,7 @@ from flask import (abort, jsonify, make_response, redirect, render_template,
                    request, send_from_directory, url_for)
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
 
-from app import app, db
+from app import app, db, signer
 from chime import create_attendee, create_meeting, get_client_from_env
 from game import (give_hint, guess, make_game, record_viewed, safe_game,
                   skip_player, stop_guessing)
@@ -23,7 +23,10 @@ from models.game import get_attendee, update_game_details
 from request import attendee_or_404, game_or_404
 from response import build_json_response, json_error
 from utils import id_generator
-from words import DECKS
+from words import DECKS, Decks
+from auth.login import make_login_token
+from auth.views import login
+
 
 pusher_client = pusher.Pusher(
   app_id=os.environ['PUSHER_APP_ID'],
@@ -33,19 +36,15 @@ pusher_client = pusher.Pusher(
   ssl=True
 )
 
-@app.route('/delete_game')
-def delete_game():
-  # TODO this should be admin only
-  id = request.args.get('id')
-  game = get_game(id)
-  db.session.delete(game)
-  db.session.commit()
-  return 'Ok'
+@app.route('/login', methods=['POST', 'GET'], endpoint='auth_login')
+def login_then_redirect():
+  response = login()
+  raise
+  return response
 
 @app.route('/')
 def setup_game():
-  decks = list(DECKS.keys())
-  decks.sort()
+  decks = Decks.values()
   return render_template('setup.html', decks=decks)
 
 @app.route('/game/<game_id>', methods=['GET'], endpoint='game_details')
@@ -176,7 +175,7 @@ def player_js(player_token, db_attendee, db_game, game, game_id):
   response.mimetype = 'text/javascript'
   return response
 
-@app.route('/game', methods=['POST'])
+@app.route('/game', methods=['POST'], endpoint='build_game')
 def build_game():
     content = request.get_json()
     player1_name = content.get('player1Name', 'Player 1')
@@ -192,8 +191,10 @@ def build_game():
     player2 = db_game.add_pending_attendee(name=player2_name, index=2)
     game = safe_game(game, db_game.token)
     return {
-      'gameUrlPlayer1': url_for('start_game_split', game_id=db_game.token, player_token=player1.token),
-      'gameUrlPlayer2': url_for('start_game_split', game_id=db_game.token, player_token=player2.token),
+      'gameUrlPlayer1': url_for('start_game_split', game_id=db_game.token, player_token=player1.token,
+        token=make_login_token(signer, db_game.token, 1)),
+      'gameUrlPlayer2': url_for('start_game_split', game_id=db_game.token, player_token=player2.token,
+        token=make_login_token(signer, db_game.token, 2)),
     }
 
 

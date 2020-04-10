@@ -1,10 +1,11 @@
-from game import get_other_player, guess, make_game, skip_player
+from game import get_other_player, guess, make_game, skip_player, stop_guessing
 from game.dataclasses import Game
-from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP, NOT_YOUR_TURN
+from game.outcomes import SUDDEN_DEATH, NO_MORE_TIME, YELLOW, BLACK, GREEN, SKIPPED, CANNOT_SKIP, NOT_YOUR_TURN, STOPPED_GUESSING, Outcomes
 from assertpy import assert_that
 from pytest import mark
 import random
 from words import Decks
+from history.kinds import Kind
 
 def get_game():
   return {
@@ -35,7 +36,9 @@ def get_game():
   'lost': False,
   'won': False,
   'keys': 0,
-  'history': []
+  'history': {'entries': [
+    {'kind': Kind.CREATED}
+  ]}
 }
 
 def get_game_dc() -> Game:
@@ -55,6 +58,20 @@ def test_should_enter_sudden_death():
   assert_that(game['next_up']).is_none()
 
 @mark.sudden_death
+def test_should_enter_sudden_death_on_stop():
+  """Sudden death is triggered when last bystander is killed"""
+  game = get_game()
+  game['next_up'] = 2
+  game['bystanders'] = 1
+
+  outcome, game = stop_guessing(game, 2)
+
+  assert_that(outcome).is_equal_to(Outcomes.SUDDEN_DEATH)
+  assert_that(game['lost']).is_false()
+  assert_that(game['sudden_death']).is_true()
+  assert_that(game['next_up']).is_none()
+
+@mark.sudden_death
 def test_should_lose_on_yellow_in_sudden_death():
   """During sudden death, yellow means lose"""
   game = get_game()
@@ -64,6 +81,28 @@ def test_should_lose_on_yellow_in_sudden_death():
 
   assert_that(outcome).is_equal_to(NO_MORE_TIME)
   assert_that(game['lost']).is_true()
+
+@mark.standard_play
+def test_should_reduce_bystanders_on_stop():
+  game = get_game()
+  game['bystanders'] = 5
+  game['next_up'] = 1
+
+  outcome, game = stop_guessing(game, 1)
+  assert_that(outcome).is_equal_to(Outcomes.STOPPED_GUESSING)
+  assert_that(game).has_bystanders(4)
+  assert_that(game).has_next_up(2)
+
+@mark.standard_play
+def test_should_not_allow_wrong_player_on_stop():
+  game = get_game()
+  game['bystanders'] = 2
+  game['next_up'] = 1
+
+  outcome, game = stop_guessing(game, 2)
+  assert_that(outcome).is_equal_to(Outcomes.NOT_YOUR_TURN)
+  assert_that(game).has_bystanders(2)
+  assert_that(game).has_next_up(1)
 
 @mark.standard_play
 def test_should_allow_correct_player():

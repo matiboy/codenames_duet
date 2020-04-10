@@ -2,11 +2,13 @@ import Vue from 'vue'
 import {chunk, throttle, range} from 'lodash'
 import { DefaultDeviceController, MeetingSessionConfiguration, DefaultMeetingSession, AudioVideoController, AudioVideoFacade, DeviceChangeObserver, AudioVideoObserver, VideoTileState, ConsoleLogger, LogLevel, TimeoutScheduler, MeetingSessionStatus } from 'amazon-chime-sdk-js';
 import { logger, QualityMappings } from './chime';
+import { login } from './api'
 import { TestSound } from './chime/test-sound'
 // import Pusher from 'pusher-js' // Broken import :/ using window for now
 import 'pusher-js'
 import { Game, Attendee } from './game.interface';
 import Key from './key.vue'
+import { setAuthTokens } from 'axios-jwt';
 
 let meetingSession: DefaultMeetingSession
 let audioVideo: AudioVideoFacade
@@ -131,9 +133,14 @@ export default {
       otherMuted: false,
       localMuted: false,
       agents: range(0, 15),
-      hint: {}
+      hint: {},
+      preview: true
     },
     async mounted() {
+      const urlParams = new URLSearchParams(window.location.search)
+      const token = urlParams.get('token')
+      // Log in
+      login(token).then(tokens => setAuthTokens(tokens))
       // Pusher stuff
       pusher = new (window as any).Pusher((window as any).PUSHER_KEY, {
         cluster: (window as any).PUSHER_CLUSTER,
@@ -157,7 +164,8 @@ export default {
         this.hint = data
       });
       // Chime stuff
-      const deviceController = new DefaultDeviceController(logger)
+      const deviceController = new DefaultDeviceController(logger);
+      (window as any).dc = deviceController
       const configuration = new MeetingSessionConfiguration((window as any).MEETING, (window as any).ATTENDEE);
       meetingSession = new DefaultMeetingSession(configuration, logger, deviceController)
       audioVideo = meetingSession.audioVideo;
@@ -202,7 +210,7 @@ export default {
     },
     computed: {
       inVideo() {
-        return (['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+        return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
       },
       suddenDeath() {
         return this.game.sudden_death
@@ -335,7 +343,9 @@ export default {
       async selectVideoInput(deviceId: string) {
         selectedVideoDevice = deviceId
         await audioVideo.chooseVideoInputDevice(deviceId)
-        audioVideo.startVideoPreviewForVideoInput(getVideoPreviewElement())
+        if(this.preview) {
+          audioVideo.startVideoPreviewForVideoInput(getVideoPreviewElement())
+        }
       },
       async selectVideoQuality(value: string) {
         const quality: [number, number, number, number] = QualityMappings[value]
@@ -377,7 +387,10 @@ export default {
       isFound(word: string) {
         return this.game.found.includes(word)
       },
-      showSnackbar(text) {
+      async showSnackbar(text) {
+        // Make sure snackbar was gone first
+        this.snackbar = false
+        await this.$nextTick()
         this.snackbar = true
         this.snackbarText = text
       },

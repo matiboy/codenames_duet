@@ -108,14 +108,17 @@ def skip_player(game, player_index: int) -> (int, dict):
   game['next_up'] = get_other_player(player_index)
   return (SKIPPED, game)
 
-def stop_guessing(game, player: int) -> (int, dict):
+def stop_guessing(game, player: int) -> (Outcomes, dict):
+  if game['next_up'] != player:
+    return Outcomes.NOT_YOUR_TURN, game
   game['bystanders'] -= 1
-  game['next_up'] = get_other_player(player)
   game['hint'] = {}
-  if game['bystanders'] <= 0:
-    game['lost'] = True
-    return (NO_MORE_TIME, game)
-  return (STOPPED_GUESSING, game)
+  if game['bystanders'] == 0:
+    game['next_up'] = None
+    game['sudden_death'] = True
+    return (Outcomes.SUDDEN_DEATH, game)
+  game['next_up'] = get_other_player(player)
+  return (Outcomes.STOPPED_GUESSING, game)
 
 def guess(game, player: int, word: str) -> (int, dict):
   player_key = f'player{player}'

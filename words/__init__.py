@@ -12,6 +12,10 @@ class Decks(enum.Enum):
   Francais = "Francais"
   Deutsch = "Deutsch"
 
+  @staticmethod
+  def values():
+    return sorted([d.value for d in Decks])
+
 DECKS = {
   Decks.Duet: duet,
   Decks.Duet_2: duet_2,
