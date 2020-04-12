@@ -25,10 +25,10 @@ class Player:
   name: str
 
 def decks_to_str(value: List[Decks]):
-  return [Decks(v).value for v in value]
+  return [v.value for v in value]
 
 def str_to_decks(value: List[str]):
-  return [Decks[v] for v in value]
+  return [Decks(v) for v in value]
 
 @dataclass_json()
 @dataclass

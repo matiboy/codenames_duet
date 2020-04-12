@@ -203,7 +203,7 @@ export default {
     },
     computed: {
       inVideo() {
-        return (['flow-load-devices', 'flow-devices'].includes(this.videoStep))
+        return !(['flow-load-devices', 'flow-devices'].includes(this.videoStep))
       },
       suddenDeath() {
         return this.game.sudden_death

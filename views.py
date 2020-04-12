@@ -222,20 +222,17 @@ def skip(game_id, db_game, game, db_attendee, **kwargs):
 @app.route('/stop/<game_id>/<player_token>', methods=['POST'], endpoint='stop_route')
 @game_or_404()
 @attendee_or_404
-def stop_route(game_id, player_token, game, db_game, db_attendee,  **kwargs):
+def stop_route(game_id, player_token, game, game_dc, db_game, db_attendee,  **kwargs):
   content = request.get_json()
   index = db_attendee.index
-  game = GameDC.from_dict(game)
-  result, game = stop_guessing(game, index)
-  game = game.to_dict()
-  game['decks'] = json.dumps(game['decks'], default=str)
-  update_game_details(game.to_dict(), game_id)
+  result, game_dc = stop_guessing(game_dc, index)
+  update_game_details(game_dc, game_id)
   channel = get_other_player_channel(db_game, player_token)
   app.logger.info(f'Triggering update on socket channel {channel}')
   pusher_client.trigger(channel, 'game_update', {'message': "Stopped guessing"})
   return {
     'result': result,
-    'game': safe_game(game, game_id)
+    'game': safe_game(game_dc, game_id)
   }
 
 @app.route('/guess/<game_id>/<player_token>', methods=['POST'], endpoint='guess_route')

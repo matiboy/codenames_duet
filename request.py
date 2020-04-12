@@ -1,6 +1,7 @@
 from functools import wraps
 from models.game import game_to_dict, get_attendee, get_game
 from flask import abort, redirect, url_for
+from game.dataclasses import Game
 
 def game_or_404(redirect_to=None):
   def callable(original_function, **kwargs):
@@ -14,6 +15,7 @@ def game_or_404(redirect_to=None):
         abort(404)
       kwargs['db_game'] = game
       kwargs['game'] = game_to_dict(game)
+      kwargs['game_dc'] = Game.from_dict(kwargs['game'])
       return original_function(*args, **kwargs)
     return fn
   return callable
