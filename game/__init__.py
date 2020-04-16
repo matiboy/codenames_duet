@@ -78,7 +78,10 @@ def make_game(player1_name: str, player2_name: str, bystanders: int, decks: List
     'won': False,
     'keys': 0,
     'history': {'entries': []},
-    'hint': {},
+    'hint': {
+      'count': 0,
+      'word': ''
+    },
     'lost_reason': ''
   }
 

@@ -40,7 +40,6 @@ pusher_client = pusher.Pusher(
 @app.route('/login', methods=['POST', 'GET'], endpoint='auth_login')
 def login_then_redirect():
   response = login()
-  raise
   return response
 
 @app.route('/')
@@ -178,7 +177,7 @@ def build_game():
     player1_name = content.get('player1Name', 'Player 1')
     player2_name = content.get('player2Name', 'Player 2')
     decks = content.get('decks', ['Codenames'])
-    bystanders = content.get('bystanders', 9)
+    bystanders = int(content.get('bystanders', 9))
     game = make_game(player1_name, player2_name, bystanders, decks)
     db_game = Game(token=id_generator(size=30), game_details=json.dumps(game))
     db.session.add(db_game)
