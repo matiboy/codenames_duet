@@ -6,7 +6,7 @@
     "@types/lodash": "^4.14.149",
     "@types/pusher-js": "^4.2.2",
     "amazon-chime-sdk-js": "^1.2.1",
-    "axios": "^0.19.2",
+    "axios": "^0.21.1",
     "axios-jwt": "^1.2.0",
     "lodash": "^4.17.15",
     "pusher-js": "5.1.0",
