@@ -12,7 +12,7 @@
     "pusher-js": "5.1.0",
     "vue": "^2.6.11",
     "vue-template-compiler": "^2.6.11",
-    "vuetify": "^2.2.20"
+    "vuetify": "^2.6.10"
   },
   "devDependencies": {
     "css-loader": "^3.4.2",
